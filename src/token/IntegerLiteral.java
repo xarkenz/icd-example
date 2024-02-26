@@ -1,8 +1,24 @@
 package token;
 
-public record IntegerLiteral(int value) implements Token {
+/**
+ * Token representing an integer literal.
+ */
+public class IntegerLiteral implements Token {
+    /**
+     * The integer value represented by this literal.
+     */
+    private final int value;
+
+    public IntegerLiteral(int value) {
+        this.value = value;
+    }
+
+    public int getValue() {
+        return this.value;
+    }
+
     @Override
     public String toString() {
-        return "(integer " + this.value() + ")";
+        return "(integer " + this.getValue() + ")";
     }
 }
