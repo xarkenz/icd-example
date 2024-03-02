@@ -2,6 +2,8 @@ package cli;
 
 import error.CompilerError;
 import org.apache.commons.cli.*;
+import syntax.ASTNode;
+import syntax.Parser;
 import token.TokenScanner;
 
 import java.io.FileReader;
@@ -18,7 +20,7 @@ public class CompilerCommand {
     public static final String NAME = "icd-example";
 
     /**
-     * The set of options allowed for this command.
+     * The set of allowed options for this command.
      */
     private final Options options;
 
@@ -39,8 +41,8 @@ public class CompilerCommand {
      */
     public void invoke(String[] strings) throws ParseException, CompilerError {
         // Parse the strings passed with the invocation
-        CommandLineParser parser = new DefaultParser();
-        CommandLine invocation = parser.parse(this.options, strings);
+        CommandLineParser argParser = new DefaultParser();
+        CommandLine invocation = argParser.parse(this.options, strings);
 
         if (invocation.hasOption('h')) {
             // Trigger the help menu and exit
@@ -55,9 +57,13 @@ public class CompilerCommand {
             try (FileReader reader = new FileReader(infile)) {
                 TokenScanner scanner = new TokenScanner(reader);
 
-                while (scanner.scanToken() != null) {
-                    System.out.println(scanner.getToken());
-                }
+                Parser parser = new Parser(scanner);
+
+                Interpreter interpreter = new Interpreter();
+
+                ASTNode expression = parser.parseExpression();
+                int result = interpreter.interpretNode(expression);
+                System.out.println("Result: " + result);
             }
             catch (IOException cause) {
                 throw new CompilerError("unable to open '" + infile + "'", cause);

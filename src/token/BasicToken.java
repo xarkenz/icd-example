@@ -42,6 +42,6 @@ public enum BasicToken implements Token {
 
     @Override
     public String toString() {
-        return "(basic " + this.getContent() + ")";
+        return this.getContent();
     }
 }

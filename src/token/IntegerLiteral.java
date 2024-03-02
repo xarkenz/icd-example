@@ -1,9 +1,12 @@
 package token;
 
+import syntax.ASTNode;
+
 /**
- * Token representing an integer literal.
+ * Representation of an integer literal from the source code.
+ * Serves as a token, but is inserted directly into the AST.
  */
-public class IntegerLiteral implements Token {
+public class IntegerLiteral implements Token, ASTNode {
     /**
      * The integer value represented by this literal.
      */
@@ -19,6 +22,6 @@ public class IntegerLiteral implements Token {
 
     @Override
     public String toString() {
-        return "(integer " + this.getValue() + ")";
+        return Integer.toString(this.getValue());
     }
 }

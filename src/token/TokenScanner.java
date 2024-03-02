@@ -40,6 +40,20 @@ public class TokenScanner {
     }
 
     /**
+     * Get the last Token which was scanned, ensuring it is not null.
+     * @return The last token which was scanned.
+     * @throws CompilerError: Thrown if the end of the file was reached (in which case the Token would be null.)
+     */
+    public @NotNull Token expectToken() throws CompilerError {
+        if (this.token == null) {
+            throw new CompilerError("unexpected end of file");
+        }
+        else {
+            return this.token;
+        }
+    }
+
+    /**
      * Scan the next Token from input.
      * @return The token which was just scanned, or null if the end of the file was reached.
      * (Equivalent to calling getToken() afterward.)
