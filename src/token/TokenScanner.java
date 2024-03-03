@@ -11,38 +11,49 @@ import java.util.Objects;
 import java.util.Stack;
 
 /**
- * Class which scans characters from a Reader into Tokens.
+ * Class which scans characters from a {@link Reader} into a sequence of tokens.
+ * @see Reader
  */
 public class TokenScanner {
     /**
-     * The source of characters for this TokenScanner.
+     * The source of characters for this {@link TokenScanner}.
      */
     private final @NotNull Reader reader;
     /**
-     * A stack used to "unread" or "put back" characters.
+     * The stack used to "unread" or "put back" characters.
      */
     private final @NotNull Stack<Character> putBacks;
     /**
-     * The last Token which was scanned.
-     * This is null if scanToken() has never been called on this instance,
+     * The last token which was scanned by a call to {@link #scanToken()}.
+     * This is null if {@link #scanToken()} has never been called on this instance,
      * or if the end of the file has been reached.
      */
     private @Nullable Token token;
 
+    /**
+     * Construct a new scanner from an existing {@link Reader}.
+     * Postcondition: {@link #getToken()} will return null until {@link #scanToken()} is called for the first time.
+     * @param reader The source of characters for this {@link TokenScanner}.
+     */
     public TokenScanner(@NotNull Reader reader) {
         this.reader = reader;
         this.putBacks = new Stack<>();
         this.token = null;
     }
 
+    /**
+     * Get the last token which was scanned by a call to {@link #scanToken()}.
+     * This is null if {@link #scanToken()} has never been called on this instance,
+     * or if the end of the file has been reached.
+     */
     public @Nullable Token getToken() {
         return this.token;
     }
 
     /**
-     * Get the last Token which was scanned, ensuring it is not null.
+     * Get the last token which was scanned, ensuring it is not null.
      * @return The last token which was scanned.
-     * @throws CompilerError: Thrown if the end of the file was reached (in which case the Token would be null.)
+     * @throws CompilerError Thrown if the end of the file was reached, in which case the token would be null.
      */
     public @NotNull Token expectToken() throws CompilerError {
         if (this.token == null) {
@@ -54,10 +65,10 @@ public class TokenScanner {
     }
 
     /**
-     * Scan the next Token from input.
+     * Scan the next token from input.
      * @return The token which was just scanned, or null if the end of the file was reached.
-     * (Equivalent to calling getToken() afterward.)
-     * @throws CompilerError: Thrown if either an IOException is thrown while reading characters,
+     * (This token can also be accessed calling {@link #getToken()} afterward.)
+     * @throws CompilerError Thrown if either an {@link IOException} is thrown while reading characters,
      * or if a malformed token is scanned.
      */
     public @Nullable Token scanToken() throws CompilerError {
@@ -85,12 +96,12 @@ public class TokenScanner {
     /**
      * Read the next character from input.
      * @return The next character to use for constructing tokens, or null if the end of the file was reached.
-     * @throws CompilerError: Thrown if an IOException is thrown from Reader.read().
+     * @throws CompilerError Thrown if an {@link IOException} is thrown from {@link Reader#read()}.
      */
     private @Nullable Character nextChar() throws CompilerError {
         if (this.putBacks.isEmpty()) {
             try {
-                // Read a single character from the Reader (this can throw an IOException)
+                // Read a single character from the Reader (throws IOException)
                 int read = this.reader.read();
 
                 if (read < 0) {
@@ -113,8 +124,8 @@ public class TokenScanner {
 
     /**
      * Put one character back into the input, essentially "unreading" it.
-     * The character is put onto a stack which will be popped from the next time nextChar() is called.
-     * @param toPutBack: The last character returned by nextChar() which has not been put back already.
+     * The character is put onto a stack which will be popped from the next time {@link #nextChar()} is called.
+     * @param toPutBack The last character returned by {@link #nextChar()} which has not been put back already.
      */
     private void putBack(@Nullable Character toPutBack) {
         this.putBacks.push(toPutBack);
@@ -123,7 +134,7 @@ public class TokenScanner {
     /**
      * Read characters from input until encountering one which is not whitespace.
      * @return The first non-whitespace character encountered, or null if the end of the file was reached.
-     * @throws CompilerError: Thrown if nextChar() throws an error at any point.
+     * @throws CompilerError Thrown if {@link #nextChar()} throws an error at any point.
      */
     private @Nullable Character nextNonSpaceChar() throws CompilerError {
         Character readChar = this.nextChar();
@@ -137,15 +148,16 @@ public class TokenScanner {
 
     /**
      * Scan an integer literal token from input.
-     * Precondition: the next call to nextChar() will not return null.
-     * @return The Token representing the scanned integer literal.
-     * @throws CompilerError: Thrown if nextChar() throws an error at any point.
+     * <p>
+     * Precondition: The next call to {@link #nextChar()} must not return null.
+     * @return The token representing the scanned integer literal.
+     * @throws CompilerError Thrown if {@link #nextChar()} throws an error at any point.
      */
     private @NotNull Token scanIntegerLiteral() throws CompilerError {
-        int value = 0;
         Character readChar = this.nextChar();
         Objects.requireNonNull(readChar);
 
+        int value = 0;
         while (readChar != null && '0' <= readChar && readChar <= '9') {
             int digit = readChar - '0';
             value = value * 10 + digit;
@@ -159,17 +171,20 @@ public class TokenScanner {
     }
 
     /**
-     * Scan an operator token from input.
-     * Precondition: the next call to nextChar() will not return null.
-     * @return The Token representing the scanned operator token.
-     * @throws CompilerError: Thrown if no clear match was found, or if nextChar() throws an error at any point.
+     * Scan an operator/separator token from input.
+     * <p>
+     * Precondition: The next call to {@link #nextChar()} must not return null.
+     * @return The token representing the scanned operator/separator.
+     * @throws CompilerError Thrown if no clear match was found, or if {@link #nextChar()} throws an error at any point.
      */
     private @NotNull Token scanOperatorToken() throws CompilerError {
         Character readChar = this.nextChar();
         Objects.requireNonNull(readChar);
 
+        // Get all basic tokens matching the first character read
         List<BasicToken> operatorTokenMatches = BasicToken.findPartialMatches(readChar);
 
+        // TODO: dealing with tokens longer than 1 character
         if (operatorTokenMatches.isEmpty()) {
             throw new CompilerError("unexpected character: " + readChar);
         }

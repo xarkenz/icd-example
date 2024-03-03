@@ -2,7 +2,7 @@ package syntax;
 
 /**
  * The property of an operation dictating the order in which it should be evaluated
- * relative to other operations (hence, its precedence.) This property is used in Pratt parsing to generalize
+ * relative to other operations (hence, its precedence). This property is used in Pratt parsing to generalize
  * the handling of operator precedence.
  * <p>
  * This was constructed by taking
@@ -10,8 +10,9 @@ package syntax;
  * and reversing the levels so the highest level corresponds to the most precedence.
  * <p>
  * I was hoping to keep the enum values in the order they are listed on the table linked above,
- * but for whatever reason, the default Comparable implementation on enums is marked as final.
+ * but for whatever reason, the default {@link Comparable} implementation on {@link Enum} is marked as final.
  * Now why would they do that?
+ * @see Operation
  */
 public enum Precedence {
     COMMA(1),           // ,
@@ -30,6 +31,9 @@ public enum Precedence {
     PREFIX(14),         // +_, -_, !_, ~_, &_, *_, ++_, --_, cast, sizeof
     POSTFIX(15);        // ., ->, _++, _--, _(), _[]
 
+    /**
+     * The integer corresponding to this precedence level.
+     */
     private final int level;
 
     Precedence(int level) {

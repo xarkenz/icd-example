@@ -12,6 +12,7 @@ import java.util.Objects;
 
 /**
  * Class for handling command-line usage of the compiler.
+ * @see CommandLine
  */
 public class CompilerCommand {
     /**
@@ -35,9 +36,9 @@ public class CompilerCommand {
 
     /**
      * Parse a command-line invocation of the command and execute the corresponding logic.
-     * @param strings: Array of strings passed in invocation of the command.
-     * @throws ParseException: Thrown if the command invocation could not be parsed properly.
-     * @throws CompilerError: Thrown if the compiler throws an error.
+     * @param strings Array of strings passed in invocation of the command.
+     * @throws ParseException Thrown if the command invocation could not be parsed properly.
+     * @throws CompilerError Thrown if the compiler throws an error.
      */
     public void invoke(String[] strings) throws ParseException, CompilerError {
         // Parse the strings passed with the invocation
@@ -55,13 +56,15 @@ public class CompilerCommand {
 
         for (String infile : infiles) {
             try (FileReader reader = new FileReader(infile)) {
+                // Create the scanner with file input
                 TokenScanner scanner = new TokenScanner(reader);
-
+                // Create the parser using the scanner
                 Parser parser = new Parser(scanner);
-
+                // Create the interpreter
                 Interpreter interpreter = new Interpreter();
 
                 ASTNode expression = parser.parseExpression();
+                System.out.println("Parsed expression: " + expression);
                 int result = interpreter.interpretNode(expression);
                 System.out.println("Result: " + result);
             }
