@@ -1,5 +1,6 @@
 package cli;
 
+import codegen.Generator;
 import error.CompilerError;
 import org.apache.commons.cli.*;
 import syntax.ASTNode;
@@ -7,6 +8,7 @@ import syntax.Parser;
 import token.TokenScanner;
 
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Objects;
 
@@ -61,15 +63,18 @@ public class CompilerCommand {
                 // Create the parser using the scanner
                 Parser parser = new Parser(scanner);
                 // Create the interpreter
-                Interpreter interpreter = new Interpreter();
-
-                ASTNode expression = parser.parseExpression();
-                System.out.println("Parsed expression: " + expression);
-                int result = interpreter.interpretNode(expression);
-                System.out.println("Result: " + result);
+                try (FileWriter writer = new FileWriter(outfile)) {
+                    ASTNode expression = parser.parseExpression();
+                    System.out.println("Parsed expression: " + expression);
+                    Generator.generate(writer, expression, infile);
+                    System.out.println("Successfully written to '" + outfile + "'.");
+                }
+                catch (IOException cause) {
+                    throw new CompilerError("unable to create file '" + outfile + "'", cause);
+                }
             }
             catch (IOException cause) {
-                throw new CompilerError("unable to open '" + infile + "'", cause);
+                throw new CompilerError("unable to open file '" + infile + "'", cause);
             }
         }
     }
