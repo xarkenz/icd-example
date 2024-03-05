@@ -6,9 +6,11 @@ import java.util.List;
 /**
  * Enumeration of "basic" tokens, i.e. tokens with only one representation.
  * This includes:
- *   - Operator tokens, such as '+' and '=='
- *   - Separator tokens, such as ',' and ')'
- *   - Keyword tokens, such as 'if' and 'else'
+ * <ul>
+ *   <li>Operator tokens, such as {@code +} and {@code ==}</li>
+ *   <li>Separator tokens, such as {@code ,} and {@code )}</li>
+ *   <li>Keyword tokens, such as {@code if} and {@code else}</li>
+ * </ul>
  */
 public enum BasicToken implements Token {
     PLUS("+"),
@@ -31,8 +33,8 @@ public enum BasicToken implements Token {
 
     /**
      * Find all matching basic tokens based on the first character.
-     * @param firstChar: The character which all returned tokens must start with.
-     * @return A List of all matching tokens.
+     * @param firstChar The character which all returned tokens must start with.
+     * @return A {@link List} of all matching tokens.
      */
     public static List<BasicToken> findPartialMatches(char firstChar) {
         return Arrays.stream(BasicToken.values())
@@ -40,6 +42,10 @@ public enum BasicToken implements Token {
             .toList();
     }
 
+    /**
+     * Get the string representation of this basic token.
+     * @return The only representation this basic token can have, in string form.
+     */
     @Override
     public String toString() {
         return "(basic " + this.getContent() + ")";

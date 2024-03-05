@@ -1,7 +1,7 @@
 package token;
 
 /**
- * Token representing an integer literal.
+ * Representation of a 32-bit integer literal from the source code.
  */
 public class IntegerLiteral implements Token {
     /**
@@ -17,6 +17,10 @@ public class IntegerLiteral implements Token {
         return this.value;
     }
 
+    /**
+     * Get the string representation of this literal's integer value in base 10.
+     * @return The string representation of this literal's integer value in base 10.
+     */
     @Override
     public String toString() {
         return "(integer " + this.getValue() + ")";
