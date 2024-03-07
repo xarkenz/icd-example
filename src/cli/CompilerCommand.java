@@ -62,10 +62,12 @@ public class CompilerCommand {
                 TokenScanner scanner = new TokenScanner(reader);
                 // Create the parser using the scanner
                 Parser parser = new Parser(scanner);
-                // Create the interpreter
+                // Create a new writer for the output file
                 try (FileWriter writer = new FileWriter(outfile)) {
+                    // Parse the program into an AST
                     ASTNode expression = parser.parseExpression();
                     System.out.println("Parsed expression: " + expression);
+                    // Generate and emit the AST to the output file
                     Generator.generate(writer, expression, infile);
                     System.out.println("Successfully written to '" + outfile + "'.");
                 }
