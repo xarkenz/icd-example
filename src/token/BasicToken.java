@@ -1,9 +1,11 @@
 package token;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Enumeration of "basic" tokens, i.e. tokens with only one representation.
@@ -15,10 +17,15 @@ import java.util.List;
  * </ul>
  */
 public enum BasicToken implements Token {
+    // Operators
     PLUS("+"),
     MINUS("-"),
     STAR("*"),
-    SLASH("/");
+    SLASH("/"),
+    // Separators
+    SEMICOLON(";"),
+    // Keywords
+    PRINT("print");
 
     /**
      * The only representation this basic token can have, in string form.
@@ -38,10 +45,26 @@ public enum BasicToken implements Token {
      * @param firstChar The character which all returned tokens must start with.
      * @return A {@link List} of all matching tokens.
      */
-    public static List<BasicToken> findPartialMatches(char firstChar) {
+    public static @NotNull List<BasicToken> findPartialMatches(char firstChar) {
         return Arrays.stream(BasicToken.values())
             .filter(token -> token.getContent().charAt(0) == firstChar)
             .toList();
+    }
+
+    /**
+     * Find the basic token exactly matching the given content, if one exists.
+     * <p>
+     * I didn't really want to use {@link Optional} for this because it can be awkward to work with,
+     * but that's what {@link java.util.stream.Stream#findFirst()} returns, so here we are.
+     * @param content The content for the token to match.
+     * @return The basic token exactly matching the given content, if one exists.
+     */
+    public static @NotNull Optional<BasicToken> findExactMatch(String content) {
+        // Coming from Rust, my intuition was that Stream.findFirst() would accept a predicate,
+        // but it seems to just return the first item in the stream...
+        return Arrays.stream(BasicToken.values())
+            .filter(token -> token.getContent().equals(content))
+            .findFirst();
     }
 
     /**

@@ -2,16 +2,20 @@ package codegen;
 
 import error.CompilerError;
 import org.jetbrains.annotations.NotNull;
-import syntax.ASTNode;
-import syntax.OperatorNode;
+import org.jetbrains.annotations.Nullable;
+import syntax.Parser;
+import syntax.ast.ASTNode;
+import syntax.ast.OperatorNode;
+import syntax.ast.PrintNode;
 import token.IntegerLiteral;
 
 import java.io.Writer;
+import java.util.Objects;
 
 /**
  * Class which takes an AST and handles semantic analysis and code generation.
  * The use of this class as an instance is not allowed outside of this class;
- * instead, external code must call the static method {@link #generate(Writer, ASTNode, String)}.
+ * instead, external code must call the static method {@link #generate(Writer, Parser, String, boolean)}.
  * @see Emitter
  */
 public class Generator {
@@ -42,10 +46,10 @@ public class Generator {
     /**
      * Recursively generate the LLVM code for an AST using a postorder traversal.
      * @param node The subtree of the AST to generate.
-     * @return The resulting value of the subtree.
+     * @return The resulting value of the subtree, or null if there is none.
      * @throws CompilerError Thrown if any unrecognized AST nodes are encountered (which should not happen).
      */
-    private @NotNull Register generateNode(@NotNull ASTNode node) throws CompilerError {
+    private @Nullable Register generateNode(@NotNull ASTNode node) throws CompilerError {
         if (node instanceof IntegerLiteral literal) {
             // Using the stack is completely unnecessary here, but this way we can get practice using it early on
             // Allocate space on the stack to hold the integer value, and hold the pointer to it in a register
@@ -62,8 +66,8 @@ public class Generator {
         else if (node instanceof OperatorNode operator) {
             // For now, we can just assume that we are dealing with a binary operator; this will change in the future
             // Recursively generate the operands first, and obtain the resulting values
-            Register lhs = this.generateNode(operator.getOperands()[0]);
-            Register rhs = this.generateNode(operator.getOperands()[1]);
+            Register lhs = Objects.requireNonNull(this.generateNode(operator.getOperands()[0]));
+            Register rhs = Objects.requireNonNull(this.generateNode(operator.getOperands()[1]));
             // Create an anonymous register to hold the resulting value of the operation
             Register result = this.createRegister();
 
@@ -77,6 +81,18 @@ public class Generator {
 
             return result;
         }
+        else if (node instanceof PrintNode printStatement) {
+            // Generate and emit the "printee" expression
+            Register value = Objects.requireNonNull(this.generateNode(printStatement.getPrintee()));
+
+            // Emit code to print the result of the expression to standard output.
+            // Since this emits a call to printf(), which returns a value, a new register is created to hold that value
+            // (and is subsequently never used again)
+            Register discardedResult = this.createRegister();
+            this.emitter.emitPrint(discardedResult, value);
+
+            return null;
+        }
         else {
             throw new CompilerError("unrecognized AST node type");
         }
@@ -86,21 +102,30 @@ public class Generator {
      * Generate and emit all of the LLVM code needed for a complete AST. This method is the primary public-facing
      * way of using this class.
      * @param writer The destination writer for the emitted LLVM code.
-     * @param expression The complete AST to generate and emit code for.
-     * @param sourceFilename A string describing the location of the source code for debugging purposes.
+     * @param parser The source of statements in the form of ASTs.
+     * @param sourceFilename A string describing the location of the source code for runtime debugging purposes.
+     * @param enableDebug A flag enabling debug output as the program is generated.
      * @throws CompilerError Thrown if the program semantics are determined to be invalid.
      */
-    public static void generate(@NotNull Writer writer, @NotNull ASTNode expression, @NotNull String sourceFilename) throws CompilerError {
+    public static void generate(@NotNull Writer writer, @NotNull Parser parser, @NotNull String sourceFilename, boolean enableDebug) throws CompilerError {
         // Create an emitter for the generator to use
         Emitter emitter = new Emitter(writer);
 
         emitter.emitPreamble(sourceFilename);
+
         // Create an instance of this class to keep internal state
         Generator generator = new Generator(emitter);
-        // Generate and emit the expression passed in
-        Register result = generator.generateNode(expression);
-        // Print the result of the expression to standard output
-        emitter.emitPrint(result);
+        // As each statement is parsed by the parser, generate and emit the code for that statement
+        ASTNode statement = parser.parseStatement();
+        while (statement != null) {
+            if (enableDebug) {
+                System.out.println("Parsed statement: " + statement);
+            }
+
+            generator.generateNode(statement);
+            statement = parser.parseStatement();
+        }
+
         emitter.emitPostamble();
     }
 }

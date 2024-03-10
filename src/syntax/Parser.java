@@ -3,6 +3,10 @@ package syntax;
 import error.CompilerError;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import syntax.ast.ASTNode;
+import syntax.ast.OperatorNode;
+import syntax.ast.PrintNode;
+import token.BasicToken;
 import token.Token;
 import token.TokenScanner;
 
@@ -52,6 +56,10 @@ public class Parser {
 
     /**
      * Parse an expression into an {@link ASTNode} using recursive Pratt parsing.
+     * <p>
+     * Precondition: The current token is the first token of the expression to parse.
+     * <p>
+     * Postcondition: The current token will be the token which terminated the expression (e.g. semicolon).
      * @return The parsed expression via the root of the AST.
      * @throws CompilerError Thrown if the token sequence violates syntax rules.
      */
@@ -63,7 +71,12 @@ public class Parser {
      * Parse an expression into an {@link ASTNode} using recursive Pratt parsing.
      * @param parentPrecedence The precedence of the parent operator, or null if there is none. Operators will then
      * be parsed as long as their precedence level is higher than this level.
-     * @return The parsed expression via the root of the AST.
+     * <p>
+     * Precondition: The current token is the first token of the expression to parse.
+     * <p>
+     * Postcondition: The current token will be the token which terminated the expression (e.g. semicolon, or
+     * an operator with precedence lower than the parent).
+     * @return The AST representing the parsed expression.
      * @throws CompilerError Thrown if the token sequence violates syntax rules.
      */
     public @NotNull ASTNode parseExpression(@Nullable Precedence parentPrecedence) throws CompilerError {
@@ -71,9 +84,10 @@ public class Parser {
         // (unless the method returns early). This variable will remain as the root of the subtree
         ASTNode subtree = this.parseOperand();
 
-        while (this.scanner.getToken() != null) {
+        // Keep parsing until semicolon, and throw an error if the end of the file is reached
+        while (!this.scanner.expectToken().equals(BasicToken.SEMICOLON)) {
             // Check the current token and gather information about it
-            Operation operation = Operation.fromToken(this.scanner.getToken());
+            Operation operation = Operation.fromToken(this.scanner.expectToken());
             if (operation == null) {
                 throw new CompilerError("expected an operator, got '" + this.scanner.getToken() + "'");
             }
@@ -94,5 +108,34 @@ public class Parser {
         }
 
         return subtree;
+    }
+
+    /**
+     * Parse a statement into an {@link ASTNode}.
+     * <p>
+     * Precondition: The current token is the first token of the statement to parse (if it exists).
+     * <p>
+     * Postcondition: The current token will be the first token of the next statement.
+     * @return The AST representing the parsed statement.
+     * @throws CompilerError Thrown if the token sequence violates syntax rules.
+     */
+    public @Nullable ASTNode parseStatement() throws CompilerError {
+        if (this.scanner.getToken() == null) {
+            // The end of the file has been reached
+            return null;
+        }
+        else if (this.scanner.getToken().equals(BasicToken.PRINT)) {
+            // Parse a print statement
+            this.scanner.scanToken();
+            ASTNode printee = this.parseExpression();
+            // At this point, the current token must be a semicolon, so skip to the next token
+            // to prepare for the next call to this method
+            this.scanner.scanToken();
+
+            return new PrintNode(printee);
+        }
+        else {
+            throw new CompilerError("unexpected token '" + this.scanner.getToken() + "'");
+        }
     }
 }

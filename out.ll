@@ -35,7 +35,31 @@ define i32 @main() {
 	store i32 1, i32* %21
 	%22 = load i32, i32* %21
 	%23 = sub nsw i32 %20, %22
-	call i32(i8*, ...) @printf(i8* bitcast ([4 x i8]* @print_int_fstring to i8*), i32 %23)
+	%24 = call i32(i8*, ...) @printf(i8* bitcast ([4 x i8]* @print_int_fstring to i8*), i32 %23)
+	%25 = alloca i32
+	store i32 5, i32* %25
+	%26 = load i32, i32* %25
+	%27 = call i32(i8*, ...) @printf(i8* bitcast ([4 x i8]* @print_int_fstring to i8*), i32 %26)
+	%28 = alloca i32
+	store i32 0, i32* %28
+	%29 = load i32, i32* %28
+	%30 = alloca i32
+	store i32 5, i32* %30
+	%31 = load i32, i32* %30
+	%32 = sub nsw i32 %29, %31
+	%33 = call i32(i8*, ...) @printf(i8* bitcast ([4 x i8]* @print_int_fstring to i8*), i32 %32)
+	%34 = alloca i32
+	store i32 5, i32* %34
+	%35 = load i32, i32* %34
+	%36 = alloca i32
+	store i32 3, i32* %36
+	%37 = load i32, i32* %36
+	%38 = sub nsw i32 %35, %37
+	%39 = alloca i32
+	store i32 2, i32* %39
+	%40 = load i32, i32* %39
+	%41 = add nsw i32 %38, %40
+	%42 = call i32(i8*, ...) @printf(i8* bitcast ([4 x i8]* @print_int_fstring to i8*), i32 %41)
 	ret i32 0
 }
 

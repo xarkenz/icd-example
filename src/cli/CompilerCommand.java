@@ -3,7 +3,7 @@ package cli;
 import codegen.Generator;
 import error.CompilerError;
 import org.apache.commons.cli.*;
-import syntax.ASTNode;
+import syntax.ast.ASTNode;
 import syntax.Parser;
 import token.TokenScanner;
 
@@ -53,6 +53,8 @@ public class CompilerCommand {
             return;
         }
 
+        boolean enableDebug = invocation.hasOption('d');
+
         String outfile = Objects.requireNonNullElse(invocation.getOptionValue('o'), "out.ll");
         String[] infiles = invocation.getArgs();
 
@@ -64,12 +66,12 @@ public class CompilerCommand {
                 Parser parser = new Parser(scanner);
                 // Create a new writer for the output file
                 try (FileWriter writer = new FileWriter(outfile)) {
-                    // Parse the program into an AST
-                    ASTNode expression = parser.parseExpression();
-                    System.out.println("Parsed expression: " + expression);
-                    // Generate and emit the AST to the output file
-                    Generator.generate(writer, expression, infile);
-                    System.out.println("Successfully written to '" + outfile + "'.");
+                    // Run the pipeline to scan, parse, generate and emit to the output file
+                    Generator.generate(writer, parser, infile, enableDebug);
+
+                    if (enableDebug) {
+                        System.out.println("Successfully written to '" + outfile + "'.");
+                    }
                 }
                 catch (IOException cause) {
                     throw new CompilerError("unable to create file '" + outfile + "'", cause);

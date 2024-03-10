@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Stack;
 
 /**
@@ -83,10 +84,15 @@ public class TokenScanner {
             this.putBack(firstChar);
             this.token = this.scanIntegerLiteral();
         }
+        else if (Character.isLetter(firstChar) || firstChar == '_') {
+            // Scan an identifier or keyword (which can contain digits after the first character)
+            this.putBack(firstChar);
+            this.token = this.scanIdentifierOrKeyword();
+        }
         else {
             // Scan an operator token or separator token
             this.putBack(firstChar);
-            this.token = this.scanOperatorToken();
+            this.token = this.scanOperatorOrSeparator();
         }
 
         // Return the just scanned token for convenience
@@ -139,10 +145,12 @@ public class TokenScanner {
     private @Nullable Character nextNonSpaceChar() throws CompilerError {
         Character readChar = this.nextChar();
 
-        while (readChar != null && Character.isSpaceChar(readChar)) {
+        // Skip characters until reaching null or a non-whitespace character
+        while (readChar != null && Character.isWhitespace(readChar)) {
             readChar = this.nextChar();
         }
 
+        // Return the character (or null) which caused the loop to end
         return readChar;
     }
 
@@ -158,16 +166,60 @@ public class TokenScanner {
         Objects.requireNonNull(readChar);
 
         int value = 0;
+        // Integer literals can only consist of digits, so stop at the first non-digit character
         while (readChar != null && '0' <= readChar && readChar <= '9') {
+            // Typical base 10 integer conversion, shift left by 1 place value and add the new digit.
+            // "Shift left by 1 place value" as in multiplying by 10 because it's base 10
             int digit = readChar - '0';
             value = value * 10 + digit;
 
             readChar = this.nextChar();
         }
 
+        // Since the last character read was either null or potentially part of another token, unread it
         this.putBack(readChar);
 
         return new IntegerLiteral(value);
+    }
+
+    /**
+     * Scan an identifier or keyword token from input.
+     * <p>
+     * Precondition: The next call to {@link #nextChar()} must not return null.
+     * @return The token representing the scanned identifier or keyword.
+     * @throws CompilerError Thrown if {@link #nextChar()} throws an error at any point.
+     */
+    private @NotNull Token scanIdentifierOrKeyword() throws CompilerError {
+        Character readChar = this.nextChar();
+        Objects.requireNonNull(readChar);
+
+        StringBuilder wordBuilder = new StringBuilder();
+        // By this point, the first character read should not be a digit, so we can just stop at
+        // the first character that is not alphanumeric or an underscore
+        while (readChar != null && (Character.isLetterOrDigit(readChar) || readChar == '_')) {
+            // This character will be part of the word, so append it to the existing content.
+            // Calling Character.charValue() here is probably not necessary,
+            // but it forces the StringBuilder.append(char) overload to be picked (I love overloaded methods...)
+            wordBuilder.append(readChar.charValue());
+
+            readChar = this.nextChar();
+        }
+
+        // Since the last character read was either null or potentially part of another token, unread it
+        this.putBack(readChar);
+
+        // Determine whether the scanned word matches a keyword
+        String word = wordBuilder.toString();
+        Optional<BasicToken> keyword = BasicToken.findExactMatch(word);
+
+        if (keyword.isPresent()) {
+            // A matching keyword was found, so return the basic token representing it
+            return keyword.get();
+        }
+        else {
+            // The word is not a keyword, so treat it as an identifier
+            return new Identifier(word);
+        }
     }
 
     /**
@@ -177,19 +229,19 @@ public class TokenScanner {
      * @return The token representing the scanned operator/separator.
      * @throws CompilerError Thrown if no clear match was found, or if {@link #nextChar()} throws an error at any point.
      */
-    private @NotNull Token scanOperatorToken() throws CompilerError {
+    private @NotNull Token scanOperatorOrSeparator() throws CompilerError {
         Character readChar = this.nextChar();
         Objects.requireNonNull(readChar);
 
         // Get all basic tokens matching the first character read
-        List<BasicToken> operatorTokenMatches = BasicToken.findPartialMatches(readChar);
+        List<BasicToken> partialMatches = BasicToken.findPartialMatches(readChar);
 
         // TODO: dealing with tokens longer than 1 character
-        if (operatorTokenMatches.isEmpty()) {
-            throw new CompilerError("unexpected character: " + readChar);
+        if (partialMatches.isEmpty()) {
+            throw new CompilerError("unexpected character: " + readChar + " (" + (int) readChar + ")");
         }
-        else if (operatorTokenMatches.size() == 1) {
-            return operatorTokenMatches.get(0);
+        else if (partialMatches.size() == 1) {
+            return partialMatches.get(0);
         }
         else {
             throw new CompilerError("conflicting token matches");

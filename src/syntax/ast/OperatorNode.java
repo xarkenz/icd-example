@@ -1,6 +1,8 @@
-package syntax;
+package syntax.ast;
 
 import org.jetbrains.annotations.NotNull;
+import syntax.Operation;
+import syntax.ast.ASTNode;
 
 /**
  * {@link ASTNode} representing an operator as part of an expression.

@@ -2,6 +2,7 @@ package syntax;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import syntax.ast.OperatorNode;
 import token.BasicToken;
 import token.Token;
 

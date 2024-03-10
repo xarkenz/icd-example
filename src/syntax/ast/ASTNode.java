@@ -1,4 +1,6 @@
-package syntax;
+package syntax.ast;
+
+import syntax.Parser;
 
 /**
  * Interface representing a node in an AST (abstract syntax tree).

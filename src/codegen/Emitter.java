@@ -135,9 +135,10 @@ public class Emitter {
 
     /**
      * Emits a call to the {@code printf} function in order to print an integer value followed by a newline.
+     * @param result The register which will contain the number of characters printed. (Will be discarded.)
      * @param value The integer value to print.
      */
-    public void emitPrint(@NotNull Register value) {
-        this.writer.println("\tcall i32(i8*, ...) @printf(i8* bitcast ([4 x i8]* @print_int_fstring to i8*), i32 " + value + ")");
+    public void emitPrint(@NotNull Register result, @NotNull Register value) {
+        this.writer.println("\t" + result + " = call i32(i8*, ...) @printf(i8* bitcast ([4 x i8]* @print_int_fstring to i8*), i32 " + value + ")");
     }
 }

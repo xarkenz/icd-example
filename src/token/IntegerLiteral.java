@@ -1,6 +1,6 @@
 package token;
 
-import syntax.ASTNode;
+import syntax.ast.ASTNode;
 
 /**
  * Representation of a 32-bit integer literal from the source code.
