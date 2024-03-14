@@ -1,11 +1,11 @@
-package codegen;
+package codegen.value;
 
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Representation of a virtual register in LLVM.
+ * A virtual register in LLVM, which can be used as an instruction result or operand.
  */
-public class Register {
+public class Register implements Value {
     /**
      * The identifier given to this register, excluding the prefix.
      */
@@ -25,6 +25,6 @@ public class Register {
      */
     @Override
     public String toString() {
-        return "%" + this.identifier;
+        return "%" + this.getIdentifier();
     }
 }

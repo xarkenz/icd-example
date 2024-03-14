@@ -22,9 +22,11 @@ public enum BasicToken implements Token {
     MINUS("-"),
     STAR("*"),
     SLASH("/"),
+    EQUAL("="),
     // Separators
     SEMICOLON(";"),
     // Keywords
+    INT("int"),
     PRINT("print");
 
     /**

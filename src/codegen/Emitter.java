@@ -1,5 +1,7 @@
 package codegen;
 
+import codegen.value.Register;
+import codegen.value.Value;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.PrintWriter;
@@ -65,7 +67,7 @@ public class Emitter {
      * @param value The value to store in memory.
      * @param pointer The address in memory to modify.
      */
-    public void emitStore(int value, @NotNull Register pointer) {
+    public void emitStore(@NotNull Value value, @NotNull Value pointer) {
         this.writer.println("\tstore i32 " + value + ", i32* " + pointer);
     }
 
@@ -77,7 +79,7 @@ public class Emitter {
      * @param result The output register for the instruction.
      * @param pointer The address in memory to retrieve the value from.
      */
-    public void emitLoad(@NotNull Register result, @NotNull Register pointer) {
+    public void emitLoad(@NotNull Register result, @NotNull Value pointer) {
         this.writer.println("\t" + result + " = load i32, i32* " + pointer);
     }
 
@@ -90,7 +92,7 @@ public class Emitter {
      * @param lhs The left-hand side of the operation (addend).
      * @param rhs The right-hand side of the operation (addend).
      */
-    public void emitAddition(@NotNull Register result, @NotNull Register lhs, @NotNull Register rhs) {
+    public void emitAddition(@NotNull Register result, @NotNull Value lhs, @NotNull Value rhs) {
         this.writer.println("\t" + result + " = add nsw i32 " + lhs + ", " + rhs);
     }
 
@@ -103,7 +105,7 @@ public class Emitter {
      * @param lhs The left-hand side of the operation (minuend).
      * @param rhs The right-hand side of the operation (subtrahend).
      */
-    public void emitSubtraction(@NotNull Register result, @NotNull Register lhs, @NotNull Register rhs) {
+    public void emitSubtraction(@NotNull Register result, @NotNull Value lhs, @NotNull Value rhs) {
         this.writer.println("\t" + result + " = sub nsw i32 " + lhs + ", " + rhs);
     }
 
@@ -116,7 +118,7 @@ public class Emitter {
      * @param lhs The left-hand side of the operation (multiplicand).
      * @param rhs The right-hand side of the operation (multiplier).
      */
-    public void emitMultiplication(@NotNull Register result, @NotNull Register lhs, @NotNull Register rhs) {
+    public void emitMultiplication(@NotNull Register result, @NotNull Value lhs, @NotNull Value rhs) {
         this.writer.println("\t" + result + " = mul nsw i32 " + lhs + ", " + rhs);
     }
 
@@ -129,7 +131,7 @@ public class Emitter {
      * @param lhs The left-hand side of the operation (dividend).
      * @param rhs The right-hand side of the operation (divisor).
      */
-    public void emitDivision(@NotNull Register result, @NotNull Register lhs, @NotNull Register rhs) {
+    public void emitDivision(@NotNull Register result, @NotNull Value lhs, @NotNull Value rhs) {
         this.writer.println("\t" + result + " = sdiv i32 " + lhs + ", " + rhs);
     }
 
@@ -138,7 +140,7 @@ public class Emitter {
      * @param result The register which will contain the number of characters printed. (Will be discarded.)
      * @param value The integer value to print.
      */
-    public void emitPrint(@NotNull Register result, @NotNull Register value) {
+    public void emitPrint(@NotNull Register result, @NotNull Value value) {
         this.writer.println("\t" + result + " = call i32(i8*, ...) @printf(i8* bitcast ([4 x i8]* @print_int_fstring to i8*), i32 " + value + ")");
     }
 }

@@ -13,6 +13,8 @@ import token.Token;
  * @see Precedence
  */
 public enum Operation {
+    // Assignment
+    ASSIGNMENT(BasicToken.EQUAL, Precedence.ASSIGNMENT),
     // Additive
     ADDITION(BasicToken.PLUS, Precedence.ADDITIVE),
     SUBTRACTION(BasicToken.MINUS, Precedence.ADDITIVE),
@@ -50,6 +52,7 @@ public enum Operation {
     public static @Nullable Operation fromToken(@NotNull Token token) {
         if (token instanceof BasicToken basicToken) {
             return switch (basicToken) {
+//                case EQUAL -> Operation.ASSIGNMENT;
                 case PLUS -> Operation.ADDITION;
                 case MINUS -> Operation.SUBTRACTION;
                 case STAR -> Operation.MULTIPLICATION;

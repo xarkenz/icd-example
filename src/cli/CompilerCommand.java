@@ -3,7 +3,6 @@ package cli;
 import codegen.Generator;
 import error.CompilerError;
 import org.apache.commons.cli.*;
-import syntax.ast.ASTNode;
 import syntax.Parser;
 import token.TokenScanner;
 

@@ -6,7 +6,9 @@ import org.jetbrains.annotations.Nullable;
 import syntax.ast.ASTNode;
 import syntax.ast.OperatorNode;
 import syntax.ast.PrintNode;
+import syntax.ast.VariableDeclarationNode;
 import token.BasicToken;
+import token.Identifier;
 import token.Token;
 import token.TokenScanner;
 
@@ -120,11 +122,30 @@ public class Parser {
      * @throws CompilerError Thrown if the token sequence violates syntax rules.
      */
     public @Nullable ASTNode parseStatement() throws CompilerError {
-        if (this.scanner.getToken() == null) {
+        Token firstToken = this.scanner.getToken();
+
+        if (firstToken == null) {
             // The end of the file has been reached
             return null;
         }
-        else if (this.scanner.getToken().equals(BasicToken.PRINT)) {
+        else if (firstToken.equals(BasicToken.INT)) {
+            // Parse a local variable declaration
+            // The next token must be an identifier
+            this.scanner.scanToken();
+            if (!(this.scanner.expectToken() instanceof Identifier identifier)) {
+                throw new CompilerError("expected an identifier, got '" + this.scanner.getToken() + "'");
+            }
+            // Ensure the declaration ends with a semicolon
+            this.scanner.scanToken();
+            if (!this.scanner.expectToken().equals(BasicToken.SEMICOLON)) {
+                throw new CompilerError("expected a semicolon after local variable declaration");
+            }
+            // Skip to the next token to prepare for the next call to this method
+            this.scanner.scanToken();
+
+            return new VariableDeclarationNode(identifier.getName());
+        }
+        else if (firstToken.equals(BasicToken.PRINT)) {
             // Parse a print statement
             this.scanner.scanToken();
             ASTNode printee = this.parseExpression();
@@ -134,8 +155,25 @@ public class Parser {
 
             return new PrintNode(printee);
         }
+        else if (firstToken instanceof Identifier identifier) {
+            // Parse an assignment statement (hardcoded syntax for now)
+            // The next token must be an equals sign
+            this.scanner.scanToken();
+            if (!this.scanner.expectToken().equals(BasicToken.EQUAL)) {
+                throw new CompilerError("expected an equals sign for assignment");
+            }
+            // Parse the right-hand side of the operator
+            this.scanner.scanToken();
+            ASTNode rightHandSide = this.parseExpression();
+            // At this point, the current token must be a semicolon, so skip to the next token
+            // to prepare for the next call to this method
+            this.scanner.scanToken();
+
+            // This is just an operator, as our eventual goal is to make assignment an expression
+            return new OperatorNode(Operation.ASSIGNMENT, new ASTNode[] { identifier, rightHandSide });
+        }
         else {
-            throw new CompilerError("unexpected token '" + this.scanner.getToken() + "'");
+            throw new CompilerError("unexpected token '" + firstToken + "'");
         }
     }
 }

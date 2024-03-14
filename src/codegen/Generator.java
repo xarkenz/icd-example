@@ -1,12 +1,20 @@
 package codegen;
 
+import codegen.symbol.Symbol;
+import codegen.symbol.SymbolTable;
+import codegen.value.Immediate;
+import codegen.value.Register;
+import codegen.value.Value;
 import error.CompilerError;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import syntax.Operation;
 import syntax.Parser;
 import syntax.ast.ASTNode;
 import syntax.ast.OperatorNode;
 import syntax.ast.PrintNode;
+import syntax.ast.VariableDeclarationNode;
+import token.Identifier;
 import token.IntegerLiteral;
 
 import java.io.Writer;
@@ -24,6 +32,10 @@ public class Generator {
      */
     private final @NotNull Emitter emitter;
     /**
+     * The symbol table used to store all symbols during generation
+     */
+    private final @NotNull SymbolTable symbolTable;
+    /**
      * Numeric identifier for the virtual register {@link #createRegister()} returns the next time it is called.
      * Initial value is 1.
      */
@@ -31,6 +43,7 @@ public class Generator {
 
     private Generator(@NotNull Emitter emitter) {
         this.emitter = emitter;
+        this.symbolTable = new SymbolTable();
         this.nextRegisterNumber = 1;
     }
 
@@ -44,46 +57,92 @@ public class Generator {
     }
 
     /**
+     * Get a symbol from the symbol table by name, throwing an exception if it does not exist.
+     * @param name The name to search for in the symbol table.
+     * @return The relevant symbol in the symbol table with the given name.
+     * @throws CompilerError Thrown if the given name does not correspond to a symbol in the symbol table.
+     */
+    private @NotNull Symbol getSymbol(@NotNull String name) throws CompilerError {
+        Symbol symbol = this.symbolTable.find(name);
+
+        if (symbol == null) {
+            throw new CompilerError("undefined symbol '" + name + "'");
+        }
+        else {
+            return symbol;
+        }
+    }
+
+    /**
      * Recursively generate the LLVM code for an AST using a postorder traversal.
      * @param node The subtree of the AST to generate.
      * @return The resulting value of the subtree, or null if there is none.
      * @throws CompilerError Thrown if any unrecognized AST nodes are encountered (which should not happen).
      */
-    private @Nullable Register generateNode(@NotNull ASTNode node) throws CompilerError {
+    private @Nullable Value generateNode(@NotNull ASTNode node) throws CompilerError {
         if (node instanceof IntegerLiteral literal) {
-            // Using the stack is completely unnecessary here, but this way we can get practice using it early on
-            // Allocate space on the stack to hold the integer value, and hold the pointer to it in a register
-            Register pointer = this.createRegister();
-            this.emitter.emitStackAllocation(pointer);
-            // Store the integer value from the literal on the stack
-            this.emitter.emitStore(literal.getValue(), pointer);
-            // Immediately load the integer value from the stack into a register
+            // Simply turn the integer literal into an immediate value
+            return new Immediate(literal.getValue());
+        }
+        else if (node instanceof Identifier identifier) {
+            // Get the stack pointer corresponding to the given identifier
+            Symbol symbol = this.getSymbol(identifier.getName());
+            Register pointer = symbol.getRegister();
+
+            // Emit a load instruction to obtain the local variable's value
             Register result = this.createRegister();
             this.emitter.emitLoad(result, pointer);
 
             return result;
         }
         else if (node instanceof OperatorNode operator) {
-            // For now, we can just assume that we are dealing with a binary operator; this will change in the future
-            // Recursively generate the operands first, and obtain the resulting values
-            Register lhs = Objects.requireNonNull(this.generateNode(operator.getOperands()[0]));
-            Register rhs = Objects.requireNonNull(this.generateNode(operator.getOperands()[1]));
-            // Create an anonymous register to hold the resulting value of the operation
-            Register result = this.createRegister();
+            if (operator.getOperation().equals(Operation.ASSIGNMENT)) {
+                // Assignment has to be handled a little differently
+                // First, generate and emit the right-hand side as usual
+                Value rhs = Objects.requireNonNull(this.generateNode(operator.getOperands()[1]));
+                // If the operator was parsed properly, the first operand must be an identifier
+                Identifier identifier = (Identifier) operator.getOperands()[0];
+                // Get the stack pointer corresponding to the given identifier
+                Symbol symbol = this.getSymbol(identifier.getName());
+                Register pointer = symbol.getRegister();
 
-            // Emit the instruction corresponding to the operation
-            switch (operator.getOperation()) {
-                case ADDITION -> this.emitter.emitAddition(result, lhs, rhs);
-                case SUBTRACTION -> this.emitter.emitSubtraction(result, lhs, rhs);
-                case MULTIPLICATION -> this.emitter.emitMultiplication(result, lhs, rhs);
-                case DIVISION -> this.emitter.emitDivision(result, lhs, rhs);
+                // Emit a store instruction to change the value of the variable
+                this.emitter.emitStore(rhs, pointer);
+
+                return null;
             }
+            else {
+                // For now, we can just assume that we are dealing with a binary operator; this will change in the future
+                // Recursively generate the operands first, and obtain the resulting values
+                Value lhs = Objects.requireNonNull(this.generateNode(operator.getOperands()[0]));
+                Value rhs = Objects.requireNonNull(this.generateNode(operator.getOperands()[1]));
+                // Create an anonymous register to hold the resulting value of the operation
+                Register result = this.createRegister();
 
-            return result;
+                // Emit the instruction corresponding to the operation
+                switch (operator.getOperation()) {
+                    case ADDITION -> this.emitter.emitAddition(result, lhs, rhs);
+                    case SUBTRACTION -> this.emitter.emitSubtraction(result, lhs, rhs);
+                    case MULTIPLICATION -> this.emitter.emitMultiplication(result, lhs, rhs);
+                    case DIVISION -> this.emitter.emitDivision(result, lhs, rhs);
+                }
+
+                return result;
+            }
+        }
+        else if (node instanceof VariableDeclarationNode declaration) {
+            // Allocate space on the stack for this new variable, creating a register to hold the pointer
+            Register pointer = new Register(declaration.getName());
+            this.emitter.emitStackAllocation(pointer);
+            // Create a symbol for the local variable and add it to the symbol table
+            Symbol symbol = new Symbol(declaration.getName(), pointer);
+            this.symbolTable.insert(symbol);
+
+            return null;
         }
         else if (node instanceof PrintNode printStatement) {
             // Generate and emit the "printee" expression
-            Register value = Objects.requireNonNull(this.generateNode(printStatement.getPrintee()));
+            Value value = Objects.requireNonNull(this.generateNode(printStatement.getPrintee()));
 
             // Emit code to print the result of the expression to standard output.
             // Since this emits a call to printf(), which returns a value, a new register is created to hold that value
