@@ -10,13 +10,23 @@ public class Register implements Value {
      * The identifier given to this register, excluding the prefix.
      */
     private final @NotNull String identifier;
+    /**
+     * The width of the integer stored in this register in bits.
+     */
+    private final int bitCount;
 
-    public Register(@NotNull String identifier) {
+    public Register(@NotNull String identifier, int bitCount) {
         this.identifier = identifier;
+        this.bitCount = bitCount;
     }
 
     public @NotNull String getIdentifier() {
         return this.identifier;
+    }
+
+    @Override
+    public int getBitCount() {
+        return this.bitCount;
     }
 
     /**

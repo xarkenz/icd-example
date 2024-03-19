@@ -15,6 +15,14 @@ import token.Token;
 public enum Operation {
     // Assignment
     ASSIGNMENT(BasicToken.EQUAL, Precedence.ASSIGNMENT),
+    // Equality
+    EQUAL(BasicToken.DOUBLE_EQUAL, Precedence.EQUALITY),
+    NOT_EQUAL(BasicToken.BANG_EQUAL, Precedence.EQUALITY),
+    // Inequality
+    LESS_THAN(BasicToken.LESS_THAN, Precedence.INEQUALITY),
+    GREATER_THAN(BasicToken.GREATER_THAN, Precedence.INEQUALITY),
+    LESS_EQUAL(BasicToken.LESS_EQUAL, Precedence.INEQUALITY),
+    GREATER_EQUAL(BasicToken.GREATER_EQUAL, Precedence.INEQUALITY),
     // Additive
     ADDITION(BasicToken.PLUS, Precedence.ADDITIVE),
     SUBTRACTION(BasicToken.MINUS, Precedence.ADDITIVE),
@@ -53,6 +61,12 @@ public enum Operation {
         if (token instanceof BasicToken basicToken) {
             return switch (basicToken) {
 //                case EQUAL -> Operation.ASSIGNMENT;
+                case DOUBLE_EQUAL -> Operation.EQUAL;
+                case BANG_EQUAL -> Operation.NOT_EQUAL;
+                case LESS_THAN -> Operation.LESS_THAN;
+                case GREATER_THAN -> Operation.GREATER_THAN;
+                case LESS_EQUAL -> Operation.LESS_EQUAL;
+                case GREATER_EQUAL -> Operation.GREATER_EQUAL;
                 case PLUS -> Operation.ADDITION;
                 case MINUS -> Operation.SUBTRACTION;
                 case STAR -> Operation.MULTIPLICATION;

@@ -1,9 +1,20 @@
-print 10 + 8 - 6 / 6 * 2 + 8 / 4 - 1;
-print 5;
-print 0 - 5;
-print 5 - 3 + 2;
+// Basic arithmetic test
+print 10 + 8 - 6 / 6 * 2 + 8 / 4 - 1; // prints 17
+print 5; // prints 5
+print 0 - 5; // prints -5
+print 5 - 3 + 2; // prints 4
+
+// Local variables test
 int fred;
 int jim;
 fred = 5;
 jim = 7 + fred;
-print fred + jim;
+print fred + jim; // prints 17
+
+// Comparisons test
+print 7 == 9; // false (0)
+print 7 != 9; // true (1)
+print 7 < 9; // true (1)
+print 7 > 9; // false (0)
+print 7 <= 9; // true (1)
+print 7 >= 9; // false (0)

@@ -90,6 +90,15 @@ public class TokenScanner {
             this.token = this.scanIdentifierOrKeyword();
         }
         else {
+            if (firstChar == '/') {
+                Character secondChar = this.nextChar();
+                if (secondChar != null && secondChar == '/') {
+                    this.skipLineComment();
+                    return this.scanToken();
+                }
+                this.putBack(secondChar);
+            }
+
             // Scan an operator token or separator token
             this.putBack(firstChar);
             this.token = this.scanOperatorOrSeparator();
@@ -155,6 +164,19 @@ public class TokenScanner {
     }
 
     /**
+     * Read characters from input until encountering a newline or the end of the file.
+     * @throws CompilerError Thrown if {@link #nextChar()} throws an error at any point.
+     */
+    private void skipLineComment() throws CompilerError {
+        Character readChar = this.nextChar();
+
+        // Skip characters until reaching null or a newline character
+        while (readChar != null && readChar != '\n') {
+            readChar = this.nextChar();
+        }
+    }
+
+    /**
      * Scan an integer literal token from input.
      * <p>
      * Precondition: The next call to {@link #nextChar()} must not return null.
@@ -210,11 +232,11 @@ public class TokenScanner {
 
         // Determine whether the scanned word matches a keyword
         String word = wordBuilder.toString();
-        Optional<BasicToken> keyword = BasicToken.findExactMatch(word);
+        BasicToken keyword = BasicToken.findExactMatch(word);
 
-        if (keyword.isPresent()) {
+        if (keyword != null) {
             // A matching keyword was found, so return the basic token representing it
-            return keyword.get();
+            return keyword;
         }
         else {
             // The word is not a keyword, so treat it as an identifier
@@ -223,28 +245,65 @@ public class TokenScanner {
     }
 
     /**
-     * Scan an operator/separator token from input.
+     * Scan an operator/separator token from input using a "maximal munch" approach.
+     * <p>
+     * What "maximal munch" means here is that the longest possible matching token is scanned.
+     * for example, given the input "===", the first token "munched" would be "==" rather than "=",
+     * as the former is a longer match. The next token "munched" would then be "=".
      * <p>
      * Precondition: The next call to {@link #nextChar()} must not return null.
      * @return The token representing the scanned operator/separator.
-     * @throws CompilerError Thrown if no clear match was found, or if {@link #nextChar()} throws an error at any point.
+     * @throws CompilerError Thrown if no match was found, or if {@link #nextChar()} throws an error at any point.
      */
     private @NotNull Token scanOperatorOrSeparator() throws CompilerError {
         Character readChar = this.nextChar();
         Objects.requireNonNull(readChar);
+        // Save this for a potential error later on
+        char firstChar = readChar;
 
-        // Get all basic tokens matching the first character read
-        List<BasicToken> partialMatches = BasicToken.findPartialMatches(readChar);
+        // Firstly, "munch" characters as long as they could possibly contribute to forming a token
+        StringBuilder munch = new StringBuilder();
+        while (readChar != null) {
+            // This character will be part of the word, so append it to the existing content.
+            // Calling Character.charValue() here is probably not necessary,
+            // but it forces the StringBuilder.append(char) overload to be picked (I love overloaded methods...)
+            munch.append(readChar.charValue());
 
-        // TODO: dealing with tokens longer than 1 character
-        if (partialMatches.isEmpty()) {
-            throw new CompilerError("unexpected character: " + readChar + " (" + (int) readChar + ")");
+            // Get the list of possible basic tokens based on the content we have read so far
+            List<BasicToken> partialMatches = BasicToken.findPartialMatches(munch.toString());
+
+            if (partialMatches.isEmpty()) {
+                // The character we just read cannot possibly be part of the token
+                // Unread the offending character and stop reading new characters
+                this.putBack(readChar);
+                munch.deleteCharAt(munch.length() - 1);
+                break;
+            }
+
+            readChar = this.nextChar();
         }
-        else if (partialMatches.size() == 1) {
-            return partialMatches.get(0);
+
+        // Then, determine the exact token which was "munched"
+        BasicToken matchedToken = BasicToken.findExactMatch(munch.toString());
+        // Backtrack if needed until the content forms a valid token. This loop is usually skipped,
+        // but would be handy if, for example, we had tokens for "." and "..." but not "..".
+        // In that case, for the input "..=", the munch here would be "..", and we would have to
+        // backtrack to ".". I don't think this can actually happen right now, but it's nice for generalization.
+        while (matchedToken == null && !munch.isEmpty()) {
+            // Unread one character
+            char unreadChar = munch.charAt(munch.length() - 1);
+            this.putBack(unreadChar);
+            munch.deleteCharAt(munch.length() - 1);
+            // Try matching a token again
+            matchedToken = BasicToken.findExactMatch(munch.toString());
         }
-        else {
-            throw new CompilerError("conflicting token matches");
+
+        if (matchedToken != null) {
+            // A matching token was found, so return the basic token representing it
+            return matchedToken;
+        } else {
+            // The sequence did not form any token, so report the first character as invalid
+            throw new CompilerError("unexpected character: " + firstChar + " (" + (int) firstChar + ")");
         }
     }
 }

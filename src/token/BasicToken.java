@@ -23,6 +23,12 @@ public enum BasicToken implements Token {
     STAR("*"),
     SLASH("/"),
     EQUAL("="),
+    DOUBLE_EQUAL("=="),
+    BANG_EQUAL("!="),
+    LESS_THAN("<"),
+    GREATER_THAN(">"),
+    LESS_EQUAL("<="),
+    GREATER_EQUAL(">="),
     // Separators
     SEMICOLON(";"),
     // Keywords
@@ -43,30 +49,29 @@ public enum BasicToken implements Token {
     }
 
     /**
-     * Find all matching basic tokens based on the first character.
-     * @param firstChar The character which all returned tokens must start with.
+     * Find all basic tokens starting with a given prefix.
+     * @param prefix The prefix which all returned tokens must start with.
      * @return A {@link List} of all matching tokens.
      */
-    public static @NotNull List<BasicToken> findPartialMatches(char firstChar) {
+    public static @NotNull List<BasicToken> findPartialMatches(String prefix) {
         return Arrays.stream(BasicToken.values())
-            .filter(token -> token.getContent().charAt(0) == firstChar)
+            .filter(token -> token.getContent().startsWith(prefix))
             .toList();
     }
 
     /**
      * Find the basic token exactly matching the given content, if one exists.
-     * <p>
-     * I didn't really want to use {@link Optional} for this because it can be awkward to work with,
-     * but that's what {@link java.util.stream.Stream#findFirst()} returns, so here we are.
      * @param content The content for the token to match.
-     * @return The basic token exactly matching the given content, if one exists.
+     * @return The basic token exactly matching the given content, if one exists, or null otherwise.
      */
-    public static @NotNull Optional<BasicToken> findExactMatch(String content) {
+    public static @Nullable BasicToken findExactMatch(String content) {
         // Coming from Rust, my intuition was that Stream.findFirst() would accept a predicate,
         // but it seems to just return the first item in the stream...
         return Arrays.stream(BasicToken.values())
             .filter(token -> token.getContent().equals(content))
-            .findFirst();
+            .findFirst()
+            // Turn the Optional<BasicToken> into a @Nullable BasicToken
+            .orElse(null);
     }
 
     /**

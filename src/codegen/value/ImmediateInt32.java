@@ -1,20 +1,25 @@
 package codegen.value;
 
 /**
- * A constant integer value in LLVM, which can be used as an instruction operand.
+ * A constant 32-bit integer value in LLVM, which can be used as an instruction operand.
  */
-public class Immediate implements Value {
+public class ImmediateInt32 implements Value {
     /**
      * The constant value for this immediate.
      */
     private final int value;
 
-    public Immediate(int value) {
+    public ImmediateInt32(int value) {
         this.value = value;
     }
 
     public int getValue() {
         return this.value;
+    }
+
+    @Override
+    public int getBitCount() {
+        return 32;
     }
 
     /**

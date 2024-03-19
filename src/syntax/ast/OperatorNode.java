@@ -2,7 +2,6 @@ package syntax.ast;
 
 import org.jetbrains.annotations.NotNull;
 import syntax.Operation;
-import syntax.ast.ASTNode;
 
 /**
  * {@link ASTNode} representing an operator as part of an expression.
@@ -32,12 +31,6 @@ public class OperatorNode implements ASTNode {
      */
     @Override
     public String toString() {
-        return switch (this.operation) {
-            case ASSIGNMENT -> "(" + this.operands[0] + " = " + this.operands[1] + ")";
-            case ADDITION -> "(" + this.operands[0] + " + " + this.operands[1] + ")";
-            case SUBTRACTION -> "(" + this.operands[0] + " - " + this.operands[1] + ")";
-            case MULTIPLICATION -> "(" + this.operands[0] + " * " + this.operands[1] + ")";
-            case DIVISION -> "(" + this.operands[0] + " / " + this.operands[1] + ")";
-        };
+        return "(" + this.operands[0] + " " + this.operation.getToken() + " " + this.operands[1] + ")";
     }
 }

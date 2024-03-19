@@ -28,6 +28,24 @@ define i32 @main() {
 	%18 = load i32, i32* %jim
 	%19 = add nsw i32 %17, %18
 	%20 = call i32(i8*, ...) @printf(i8* bitcast ([4 x i8]* @print_int_fstring to i8*), i32 %19)
+	%21 = icmp eq i32 7, 9
+	%22 = zext i1 %21 to i32
+	%23 = call i32(i8*, ...) @printf(i8* bitcast ([4 x i8]* @print_int_fstring to i8*), i32 %22)
+	%24 = icmp ne i32 7, 9
+	%25 = zext i1 %24 to i32
+	%26 = call i32(i8*, ...) @printf(i8* bitcast ([4 x i8]* @print_int_fstring to i8*), i32 %25)
+	%27 = icmp slt i32 7, 9
+	%28 = zext i1 %27 to i32
+	%29 = call i32(i8*, ...) @printf(i8* bitcast ([4 x i8]* @print_int_fstring to i8*), i32 %28)
+	%30 = icmp sgt i32 7, 9
+	%31 = zext i1 %30 to i32
+	%32 = call i32(i8*, ...) @printf(i8* bitcast ([4 x i8]* @print_int_fstring to i8*), i32 %31)
+	%33 = icmp sle i32 7, 9
+	%34 = zext i1 %33 to i32
+	%35 = call i32(i8*, ...) @printf(i8* bitcast ([4 x i8]* @print_int_fstring to i8*), i32 %34)
+	%36 = icmp sge i32 7, 9
+	%37 = zext i1 %36 to i32
+	%38 = call i32(i8*, ...) @printf(i8* bitcast ([4 x i8]* @print_int_fstring to i8*), i32 %37)
 	ret i32 0
 }
 

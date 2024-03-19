@@ -84,6 +84,19 @@ public class Emitter {
     }
 
     /**
+     * Emit the {@code zext} instruction, which converts a narrower integer to a wider one by
+     * padding the upper bits with zeroes.
+     * For example:
+     * <p>
+     * {@code %result = zext i1 %value to i32}
+     * @param result
+     * @param value
+     */
+    public void emitZeroExtension(@NotNull Register result, @NotNull Value value) {
+        this.writer.println("\t" + result + " = zext i" + value.getBitCount() + " " + value + " to i" + result.getBitCount());
+    }
+
+    /**
      * Emit the {@code add} instruction, which adds two integers and outputs their sum.
      * For example:
      * <p>
@@ -133,6 +146,30 @@ public class Emitter {
      */
     public void emitDivision(@NotNull Register result, @NotNull Value lhs, @NotNull Value rhs) {
         this.writer.println("\t" + result + " = sdiv i32 " + lhs + ", " + rhs);
+    }
+
+    /**
+     * Emit the {@code icmp} instruction, which compares two integers and outputs a boolean result.
+     * <p>
+     * There are 6 comparison kinds we will be using:
+     * <ul>
+     *     <li>{@code eq} (equal)</li>
+     *     <li>{@code ne} (not equal)</li>
+     *     <li>{@code slt} (signed less than)</li>
+     *     <li>{@code sgt} (signed greater than)</li>
+     *     <li>{@code sle} (signed less than or equal)</li>
+     *     <li>{@code sge} (signed greater than or equal)</li>
+     * </ul>
+     * For example:
+     * <p>
+     * {@code %result = icmp slt i32 %lhs, %rhs}
+     * @param result The register which will contain the boolean result.
+     * @param cmpKind The mnemonic for the kind of comparison to perform (see list above).
+     * @param lhs The left-hand side of the operation.
+     * @param rhs The right-hand side of the operation.
+     */
+    public void emitComparison(@NotNull Register result, @NotNull String cmpKind, @NotNull Value lhs, @NotNull Value rhs) {
+        this.writer.println("\t" + result + " = icmp " + cmpKind + " i32 " + lhs + ", " + rhs);
     }
 
     /**

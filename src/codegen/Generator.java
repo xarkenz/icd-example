@@ -2,7 +2,7 @@ package codegen;
 
 import codegen.symbol.Symbol;
 import codegen.symbol.SymbolTable;
-import codegen.value.Immediate;
+import codegen.value.ImmediateInt32;
 import codegen.value.Register;
 import codegen.value.Value;
 import error.CompilerError;
@@ -36,7 +36,7 @@ public class Generator {
      */
     private final @NotNull SymbolTable symbolTable;
     /**
-     * Numeric identifier for the virtual register {@link #createRegister()} returns the next time it is called.
+     * Numeric identifier for the virtual register {@link #createRegister(int)} returns the next time it is called.
      * Initial value is 1.
      */
     private int nextRegisterNumber;
@@ -50,10 +50,12 @@ public class Generator {
     /**
      * Create a new virtual register with a numeric identifier. These identifiers are treated specially
      * by LLVM in that they are required to count up from 1 in the order that the registers are defined.
+     * @param bitCount The number of bits in the integer this register will store.
      * @return A new virtual register identified with the next unused register number.
      */
-    private @NotNull Register createRegister() {
-        return new Register(Integer.toString(this.nextRegisterNumber++));
+    private @NotNull Register createRegister(int bitCount) {
+        String identifier = Integer.toString(this.nextRegisterNumber++);
+        return new Register(identifier, bitCount);
     }
 
     /**
@@ -74,6 +76,39 @@ public class Generator {
     }
 
     /**
+     * Attempt to convert a value to a given type. If the value already has the given type, no conversion is done.
+     * @param value The value to convert.
+     * @param targetBitCount The desired integer width for the value to have after the conversion.
+     * @return A new value with the desired width if a conversion was performed, or the input value otherwise.
+     * @throws CompilerError Thrown if a conversion could not be performed between the two types.
+     */
+    private @NotNull Value convertValueType(@NotNull Value value, int targetBitCount) throws CompilerError {
+        if (value.getBitCount() == targetBitCount) {
+            // We already have a value of the desired type, so leave it unchanged
+            return value;
+        }
+
+        // Regardless of what we do, we'll need an output register
+        Register result = this.createRegister(targetBitCount);
+
+        if (value.getBitCount() == 1) {
+            // Since we are converting from a boolean to something else, perform a zero extension
+            // instead of a sign extension so the boolean isn't treated as a sign bit
+            this.emitter.emitZeroExtension(result, value);
+        }
+        else if (targetBitCount == 1) {
+            // Since we are converting to a boolean from something else, compare whether the value != 0
+            // instead of truncating so the boolean value isn't derived from the least significant bit only
+            this.emitter.emitComparison(result, "ne", value, new ImmediateInt32(0));
+        }
+        else {
+            throw new CompilerError("unsupported conversion from i" + value.getBitCount() + " to i" + targetBitCount);
+        }
+
+        return result;
+    }
+
+    /**
      * Recursively generate the LLVM code for an AST using a postorder traversal.
      * @param node The subtree of the AST to generate.
      * @return The resulting value of the subtree, or null if there is none.
@@ -82,7 +117,7 @@ public class Generator {
     private @Nullable Value generateNode(@NotNull ASTNode node) throws CompilerError {
         if (node instanceof IntegerLiteral literal) {
             // Simply turn the integer literal into an immediate value
-            return new Immediate(literal.getValue());
+            return new ImmediateInt32(literal.getValue());
         }
         else if (node instanceof Identifier identifier) {
             // Get the stack pointer corresponding to the given identifier
@@ -90,7 +125,7 @@ public class Generator {
             Register pointer = symbol.getRegister();
 
             // Emit a load instruction to obtain the local variable's value
-            Register result = this.createRegister();
+            Register result = this.createRegister(32);
             this.emitter.emitLoad(result, pointer);
 
             return result;
@@ -100,6 +135,7 @@ public class Generator {
                 // Assignment has to be handled a little differently
                 // First, generate and emit the right-hand side as usual
                 Value rhs = Objects.requireNonNull(this.generateNode(operator.getOperands()[1]));
+                rhs = this.convertValueType(rhs, 32);
                 // If the operator was parsed properly, the first operand must be an identifier
                 Identifier identifier = (Identifier) operator.getOperands()[0];
                 // Get the stack pointer corresponding to the given identifier
@@ -112,19 +148,59 @@ public class Generator {
                 return null;
             }
             else {
-                // For now, we can just assume that we are dealing with a binary operator; this will change in the future
+                // For now, we can just assume that we are dealing with a binary operator
                 // Recursively generate the operands first, and obtain the resulting values
                 Value lhs = Objects.requireNonNull(this.generateNode(operator.getOperands()[0]));
+                lhs = this.convertValueType(lhs, 32);
                 Value rhs = Objects.requireNonNull(this.generateNode(operator.getOperands()[1]));
-                // Create an anonymous register to hold the resulting value of the operation
-                Register result = this.createRegister();
+                rhs = this.convertValueType(rhs, 32);
+
+                // Each branch creates an anonymous register to hold the resulting value of the operation
+                Register result;
 
                 // Emit the instruction corresponding to the operation
                 switch (operator.getOperation()) {
-                    case ADDITION -> this.emitter.emitAddition(result, lhs, rhs);
-                    case SUBTRACTION -> this.emitter.emitSubtraction(result, lhs, rhs);
-                    case MULTIPLICATION -> this.emitter.emitMultiplication(result, lhs, rhs);
-                    case DIVISION -> this.emitter.emitDivision(result, lhs, rhs);
+                    case ADDITION -> {
+                        result = this.createRegister(32);
+                        this.emitter.emitAddition(result, lhs, rhs);
+                    }
+                    case SUBTRACTION -> {
+                        result = this.createRegister(32);
+                        this.emitter.emitSubtraction(result, lhs, rhs);
+                    }
+                    case MULTIPLICATION -> {
+                        result = this.createRegister(32);
+                        this.emitter.emitMultiplication(result, lhs, rhs);
+                    }
+                    case DIVISION -> {
+                        result = this.createRegister(32);
+                        this.emitter.emitDivision(result, lhs, rhs);
+                    }
+                    case EQUAL -> {
+                        result = this.createRegister(1);
+                        this.emitter.emitComparison(result, "eq", lhs, rhs);
+                    }
+                    case NOT_EQUAL -> {
+                        result = this.createRegister(1);
+                        this.emitter.emitComparison(result, "ne", lhs, rhs);
+                    }
+                    case LESS_THAN -> {
+                        result = this.createRegister(1);
+                        this.emitter.emitComparison(result, "slt", lhs, rhs);
+                    }
+                    case GREATER_THAN -> {
+                        result = this.createRegister(1);
+                        this.emitter.emitComparison(result, "sgt", lhs, rhs);
+                    }
+                    case LESS_EQUAL -> {
+                        result = this.createRegister(1);
+                        this.emitter.emitComparison(result, "sle", lhs, rhs);
+                    }
+                    case GREATER_EQUAL -> {
+                        result = this.createRegister(1);
+                        this.emitter.emitComparison(result, "sge", lhs, rhs);
+                    }
+                    default -> throw new CompilerError("operation '" + operator.getOperation().getToken() + "' not implemented");
                 }
 
                 return result;
@@ -132,7 +208,7 @@ public class Generator {
         }
         else if (node instanceof VariableDeclarationNode declaration) {
             // Allocate space on the stack for this new variable, creating a register to hold the pointer
-            Register pointer = new Register(declaration.getName());
+            Register pointer = new Register(declaration.getName(), 32);
             this.emitter.emitStackAllocation(pointer);
             // Create a symbol for the local variable and add it to the symbol table
             Symbol symbol = new Symbol(declaration.getName(), pointer);
@@ -143,11 +219,12 @@ public class Generator {
         else if (node instanceof PrintNode printStatement) {
             // Generate and emit the "printee" expression
             Value value = Objects.requireNonNull(this.generateNode(printStatement.getPrintee()));
+            value = this.convertValueType(value, 32);
 
             // Emit code to print the result of the expression to standard output.
             // Since this emits a call to printf(), which returns a value, a new register is created to hold that value
             // (and is subsequently never used again)
-            Register discardedResult = this.createRegister();
+            Register discardedResult = this.createRegister(32);
             this.emitter.emitPrint(discardedResult, value);
 
             return null;
