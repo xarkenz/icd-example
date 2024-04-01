@@ -6,9 +6,9 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.Reader;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Stack;
 
 /**
@@ -62,6 +62,24 @@ public class TokenScanner {
         }
         else {
             return this.token;
+        }
+    }
+
+    /**
+     * Ensure the last token which was scanned matches one of the given tokens.
+     * @param validTokens Variadic arguments or an array for the list of acceptable tokens.
+     *                    If null is contained in this list, the end of the file is accepted as well.
+     * @throws CompilerError Thrown if the token does not match one of {@code validTokens}.
+     */
+    public void expectTokenFrom(@Nullable Token... validTokens) throws CompilerError {
+        // asList() doesn't seem to have any unnecessary overhead, as it just creates a List backed by the array.
+        if (!Arrays.asList(validTokens).contains(this.token)) {
+            if (this.token == null) {
+                throw new CompilerError("unexpected end of file");
+            }
+            else {
+                throw new CompilerError("unexpected token '" + this.token + "'");
+            }
         }
     }
 

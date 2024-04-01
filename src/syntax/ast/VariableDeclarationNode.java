@@ -19,7 +19,7 @@ public class VariableDeclarationNode implements ASTNode {
 
     /**
      * Convert this declaration to a string, primarily for debug purposes.
-     * @return An approximation of the syntax used to create this local variable declaration.
+     * @return A representation of the syntax used to create this local variable declaration.
      */
     @Override
     public String toString() {

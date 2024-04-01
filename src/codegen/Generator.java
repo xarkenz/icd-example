@@ -10,10 +10,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import syntax.Operation;
 import syntax.Parser;
-import syntax.ast.ASTNode;
-import syntax.ast.OperatorNode;
-import syntax.ast.PrintNode;
-import syntax.ast.VariableDeclarationNode;
+import syntax.ast.*;
 import token.Identifier;
 import token.IntegerLiteral;
 
@@ -32,30 +29,52 @@ public class Generator {
      */
     private final @NotNull Emitter emitter;
     /**
-     * The symbol table used to store all symbols during generation
+     * The symbol table used to store all symbols during generation.
      */
     private final @NotNull SymbolTable symbolTable;
     /**
      * Numeric identifier for the virtual register {@link #createRegister(int)} returns the next time it is called.
-     * Initial value is 1.
+     * Initial value is 0. (This was previously 1, but since we are now explicitly declaring the label
+     * for the first basic block in the function, the implicit "{@code 0:}" label no longer exists.)
      */
     private int nextRegisterNumber;
+    /**
+     * Numeric suffix for the label {@link #createLabel()} returns the next time it is called.
+     * Initial value is 0.
+     */
+    private int nextLabelNumber;
 
     private Generator(@NotNull Emitter emitter) {
         this.emitter = emitter;
         this.symbolTable = new SymbolTable();
-        this.nextRegisterNumber = 1;
+        this.nextRegisterNumber = 0;
+        this.nextLabelNumber = 0;
     }
 
     /**
      * Create a new virtual register with a numeric identifier. These identifiers are treated specially
-     * by LLVM in that they are required to count up from 1 in the order that the registers are defined.
+     * by LLVM in that they are required to count up from 0 in the order that the registers are defined.
      * @param bitCount The number of bits in the integer this register will store.
      * @return A new virtual register identified with the next unused register number.
      */
     private @NotNull Register createRegister(int bitCount) {
         String identifier = Integer.toString(this.nextRegisterNumber++);
         return new Register(identifier, bitCount);
+    }
+
+    /**
+     * Create a new basic block label with a unique identifier. Unlike the identifiers produced by
+     * {@link #createRegister(int)}, these identifiers use the format {@code .block.N}, where {@code N}
+     * is the numeric suffix assigned to the label to distinguish it, counting up from 0.
+     * <p>
+     * The reason for using a special format for labels instead of simply using numbers is that
+     * the generator needs to use identifiers for labels before they are defined, making it
+     * impractical to figure out where in the register number ordering the labels will fall.
+     * @return A new label identified with the format above, suffixed with the next unused numeric suffix.
+     */
+    private @NotNull Label createLabel() {
+        String suffix = Integer.toString(this.nextLabelNumber++);
+        return new Label(".block." + suffix);
     }
 
     /**
@@ -109,7 +128,7 @@ public class Generator {
     }
 
     /**
-     * Recursively generate the LLVM code for an AST using a postorder traversal.
+     * Recursively generate and emit the LLVM code for an AST using a postorder traversal.
      * @param node The subtree of the AST to generate.
      * @return The resulting value of the subtree, or null if there is none.
      * @throws CompilerError Thrown if any unrecognized AST nodes are encountered (which should not happen).
@@ -206,6 +225,14 @@ public class Generator {
                 return result;
             }
         }
+        else if (node instanceof BlockStatementNode block) {
+            // Generate and emit each statement of the block in order
+            for (ASTNode statement : block.getStatements()) {
+                this.generateNode(statement);
+            }
+
+            return null;
+        }
         else if (node instanceof VariableDeclarationNode declaration) {
             // Allocate space on the stack for this new variable, creating a register to hold the pointer
             Register pointer = new Register(declaration.getName(), 32);
@@ -218,14 +245,85 @@ public class Generator {
         }
         else if (node instanceof PrintNode printStatement) {
             // Generate and emit the "printee" expression
-            Value value = Objects.requireNonNull(this.generateNode(printStatement.getPrintee()));
-            value = this.convertValueType(value, 32);
+            Value printee = Objects.requireNonNull(this.generateNode(printStatement.getPrintee()));
+            printee = this.convertValueType(printee, 32);
 
             // Emit code to print the result of the expression to standard output.
             // Since this emits a call to printf(), which returns a value, a new register is created to hold that value
             // (and is subsequently never used again)
             Register discardedResult = this.createRegister(32);
-            this.emitter.emitPrint(discardedResult, value);
+            this.emitter.emitPrint(discardedResult, printee);
+
+            return null;
+        }
+        else if (node instanceof ConditionalNode conditional) {
+            // Generate and emit the condition expression, then convert to i1 if necessary
+            Value condition = Objects.requireNonNull(this.generateNode(conditional.getCondition()));
+            condition = this.convertValueType(condition, 1);
+
+            // These two cases aren't that different, but they are separated here for clarity
+            if (conditional.getAlternative() == null) {
+                // There is no alternative path for this conditional, so only two labels are needed
+                Label consequentLabel = this.createLabel();
+                Label tailLabel = this.createLabel();
+                this.emitter.emitConditionalBranch(condition, consequentLabel, tailLabel);
+
+                // Generate and emit the consequent path
+                this.emitter.emitLabel(consequentLabel);
+                this.generateNode(conditional.getConsequent());
+                // Emit a branch to the tail label to exit the conditional
+                this.emitter.emitUnconditionalBranch(tailLabel);
+
+                // No alternative path, so the conditional ends here
+                this.emitter.emitLabel(tailLabel);
+            }
+            else {
+                // There is an alternative path for this conditional, so three labels are needed
+                Label consequentLabel = this.createLabel();
+                Label alternativeLabel = this.createLabel();
+                Label tailLabel = this.createLabel();
+                this.emitter.emitConditionalBranch(condition, consequentLabel, alternativeLabel);
+
+                // Generate and emit the consequent path
+                this.emitter.emitLabel(consequentLabel);
+                this.generateNode(conditional.getConsequent());
+                // Emit a branch to the tail label to exit the conditional
+                this.emitter.emitUnconditionalBranch(tailLabel);
+
+                // Generate and emit the alternative path
+                this.emitter.emitLabel(alternativeLabel);
+                this.generateNode(conditional.getAlternative());
+                // Emit a branch to the tail label to exit the conditional
+                this.emitter.emitUnconditionalBranch(tailLabel);
+
+                // Both paths are finished, so the conditional ends here
+                this.emitter.emitLabel(tailLabel);
+            }
+
+            return null;
+        }
+        else if (node instanceof WhileLoopNode whileLoop) {
+            // The condition must be calculated at the beginning of each iteration, so we need to
+            // start a new basic block before generating the condition expression
+            Label continueLabel = this.createLabel();
+            this.emitter.emitUnconditionalBranch(continueLabel);
+            this.emitter.emitLabel(continueLabel);
+            // Generate and emit the condition expression, then convert to i1 if necessary
+            Value condition = Objects.requireNonNull(this.generateNode(whileLoop.getCondition()));
+            condition = this.convertValueType(condition, 1);
+            // Emit the conditional branch to test the loop condition
+            Label loopBodyLabel = this.createLabel();
+            Label breakLabel = this.createLabel();
+            this.emitter.emitConditionalBranch(condition, loopBodyLabel, breakLabel);
+
+            // Generate the loop body
+            this.emitter.emitLabel(loopBodyLabel);
+            this.generateNode(whileLoop.getLoopBody());
+            // Emit a branch to the condition to start the next iteration
+            this.emitter.emitUnconditionalBranch(continueLabel);
+
+            // The loop will branch here once the condition is false
+            this.emitter.emitLabel(breakLabel);
 
             return null;
         }
@@ -251,15 +349,17 @@ public class Generator {
 
         // Create an instance of this class to keep internal state
         Generator generator = new Generator(emitter);
+        // Emit a label for the first basic block in the function
+        emitter.emitLabel(generator.createLabel());
         // As each statement is parsed by the parser, generate and emit the code for that statement
-        ASTNode statement = parser.parseStatement();
+        ASTNode statement = parser.tryParseStatement();
         while (statement != null) {
             if (enableDebug) {
                 System.out.println("Parsed statement: " + statement);
             }
 
             generator.generateNode(statement);
-            statement = parser.parseStatement();
+            statement = parser.tryParseStatement();
         }
 
         emitter.emitPostamble();

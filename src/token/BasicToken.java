@@ -5,7 +5,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Enumeration of "basic" tokens, i.e. tokens with only one representation.
@@ -31,9 +30,16 @@ public enum BasicToken implements Token {
     GREATER_EQUAL(">="),
     // Separators
     SEMICOLON(";"),
+    PAREN_LEFT("("),
+    PAREN_RIGHT(")"),
+    CURLY_LEFT("{"),
+    CURLY_RIGHT("}"),
     // Keywords
     INT("int"),
-    PRINT("print");
+    PRINT("print"),
+    IF("if"),
+    ELSE("else"),
+    WHILE("while");
 
     /**
      * The only representation this basic token can have, in string form.
@@ -51,7 +57,7 @@ public enum BasicToken implements Token {
     /**
      * Find all basic tokens starting with a given prefix.
      * @param prefix The prefix which all returned tokens must start with.
-     * @return A {@link List} of all matching tokens.
+     * @return An unmodifiable {@link List} of all matching tokens.
      */
     public static @NotNull List<BasicToken> findPartialMatches(String prefix) {
         return Arrays.stream(BasicToken.values())

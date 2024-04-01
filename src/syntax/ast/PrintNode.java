@@ -19,7 +19,7 @@ public class PrintNode implements ASTNode {
 
     /**
      * Convert this statement to a string, primarily for debug purposes.
-     * @return An approximation of the syntax used to create this print statement.
+     * @return A representation of the syntax used to create this print statement.
      */
     @Override
     public String toString() {

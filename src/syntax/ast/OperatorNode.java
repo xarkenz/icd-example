@@ -27,7 +27,7 @@ public class OperatorNode implements ASTNode {
 
     /**
      * Convert this operator to a string, primarily for debug purposes.
-     * @return An approximation of the syntax used to create this operator node.
+     * @return A representation of the syntax used to create this operator node.
      */
     @Override
     public String toString() {

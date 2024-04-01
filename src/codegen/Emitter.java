@@ -89,8 +89,8 @@ public class Emitter {
      * For example:
      * <p>
      * {@code %result = zext i1 %value to i32}
-     * @param result
-     * @param value
+     * @param result The output register for the instruction, supplying the target bit width.
+     * @param value The integer value to be extended with zeroes, supplying the source bit width.
      */
     public void emitZeroExtension(@NotNull Register result, @NotNull Value value) {
         this.writer.println("\t" + result + " = zext i" + value.getBitCount() + " " + value + " to i" + result.getBitCount());
@@ -173,11 +173,45 @@ public class Emitter {
     }
 
     /**
+     * Emit the definition for the given label, which is its identifier (without the {@code %} prefix)
+     * followed by a colon. This definition will be written without any indentation.
+     * @param label The basic block label to be defined.
+     */
+    public void emitLabel(@NotNull Label label) {
+        this.writer.println(label.getIdentifier() + ":");
+    }
+
+    /**
+     * Emit the unconditional form of the {@code br} instruction, which always branches execution to a given label.
+     * For example:
+     * <p>
+     * {@code br label %target}
+     * @param target The label for execution to branch to.
+     */
+    public void emitUnconditionalBranch(@NotNull Label target) {
+        this.writer.println("\tbr label " + target);
+    }
+
+    /**
+     * Emit the conditional form of the {@code br} instruction, which uses a boolean condition to determine
+     * which of two given labels execution should branch to.
+     * For example:
+     * <p>
+     * {@code br i1 %condition, label %trueTarget, label %falseTarget}
+     * @param condition The boolean condition determining which label to use. (Must be of type {@code i1}.)
+     * @param trueTarget The label for execution to branch to if {@code condition} is true at runtime.
+     * @param falseTarget The label for execution to branch to if {@code condition} is false at runtime.
+     */
+    public void emitConditionalBranch(@NotNull Value condition, @NotNull Label trueTarget, @NotNull Label falseTarget) {
+        this.writer.println("\tbr i1 " + condition + ", label " + trueTarget + ", label " + falseTarget);
+    }
+
+    /**
      * Emits a call to the {@code printf} function in order to print an integer value followed by a newline.
      * @param result The register which will contain the number of characters printed. (Will be discarded.)
-     * @param value The integer value to print.
+     * @param printee The integer value to print.
      */
-    public void emitPrint(@NotNull Register result, @NotNull Value value) {
-        this.writer.println("\t" + result + " = call i32(i8*, ...) @printf(i8* bitcast ([4 x i8]* @print_int_fstring to i8*), i32 " + value + ")");
+    public void emitPrint(@NotNull Register result, @NotNull Value printee) {
+        this.writer.println("\t" + result + " = call i32(i8*, ...) @printf(i8* bitcast ([4 x i8]* @print_int_fstring to i8*), i32 " + printee + ")");
     }
 }

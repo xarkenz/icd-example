@@ -18,3 +18,30 @@ print 7 < 9; // true (1)
 print 7 > 9; // false (0)
 print 7 <= 9; // true (1)
 print 7 >= 9; // false (0)
+
+// Conditionals and loops test
+int fib1;
+fib1 = 0;
+int fib2;
+fib2 = 1;
+while (fib2 <= 1000) {
+    print fib2;
+    int fibTemp;
+    fibTemp = fib2;
+    fib2 = fib1 + fib2;
+    fib1 = fibTemp;
+}
+int mystery;
+mystery = 10;
+if (9 > mystery) {
+    print 9; // does not print
+}
+else if (11 < mystery) {
+    print 11; // does not print
+}
+else {
+    print 10; // prints 10
+    if (mystery == 10) {
+        print 1; // prints 1
+    }
+}

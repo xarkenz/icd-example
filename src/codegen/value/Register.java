@@ -7,7 +7,7 @@ import org.jetbrains.annotations.NotNull;
  */
 public class Register implements Value {
     /**
-     * The identifier given to this register, excluding the prefix.
+     * The identifier given to this register, excluding the {@code %} prefix.
      */
     private final @NotNull String identifier;
     /**
