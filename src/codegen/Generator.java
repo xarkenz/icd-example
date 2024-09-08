@@ -352,14 +352,14 @@ public class Generator {
         // Emit a label for the first basic block in the function
         emitter.emitLabel(generator.createLabel());
         // As each statement is parsed by the parser, generate and emit the code for that statement
-        ASTNode statement = parser.tryParseStatement();
+        ASTNode statement = parser.parseTopLevelStatement();
         while (statement != null) {
             if (enableDebug) {
                 System.out.println("Parsed statement: " + statement);
             }
 
             generator.generateNode(statement);
-            statement = parser.tryParseStatement();
+            statement = parser.parseTopLevelStatement();
         }
 
         emitter.emitPostamble();

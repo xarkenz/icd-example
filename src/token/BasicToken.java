@@ -29,6 +29,7 @@ public enum BasicToken implements Token {
     LESS_EQUAL("<="),
     GREATER_EQUAL(">="),
     // Separators
+    COMMA(","),
     SEMICOLON(";"),
     PAREN_LEFT("("),
     PAREN_RIGHT(")"),

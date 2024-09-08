@@ -4,9 +4,12 @@ import org.jetbrains.annotations.NotNull;
 
 /**
  * {@link ASTNode} representing a local variable declaration.
- * This consists of the name of the variable declared (for now, the type is implied as {@code int}.)
+ * This consists of the name of the variable declared (for now, the type is implied to be {@code int}.)
  */
 public class VariableDeclarationNode implements ASTNode {
+    /**
+     * The name of the variable declared (as written in the source code).
+     */
     private final @NotNull String name;
 
     public VariableDeclarationNode(@NotNull String name) {
@@ -23,6 +26,6 @@ public class VariableDeclarationNode implements ASTNode {
      */
     @Override
     public String toString() {
-        return "(int " + this.name + ")";
+        return "(int " + this.getName() + ")";
     }
 }

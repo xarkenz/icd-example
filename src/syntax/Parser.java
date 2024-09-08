@@ -27,6 +27,7 @@ public class Parser {
 
     /**
      * Construct a new parser from an existing {@link TokenScanner}.
+     * <p>
      * Precondition: The next token scanned will be the first token of the source program.
      * @param scanner The source of tokens to be used by this {@link Parser}.
      * @throws CompilerError Thrown if the scanner throws an error while scanning the first token.
@@ -114,7 +115,7 @@ public class Parser {
     }
 
     /**
-     * Parse a statement into an abstract syntax tree, unless the end of the file has been reached.
+     * Parse a top-level statement into an abstract syntax tree, unless the end of the file has been reached.
      * <p>
      * Precondition: The current token is the first token of the statement to parse, which may be null.
      * <p>
@@ -122,13 +123,43 @@ public class Parser {
      * @return The root of the AST representing the parsed statement, or null if the end of the file has been reached.
      * @throws CompilerError Thrown if the token sequence violates syntax rules.
      */
-    public @Nullable ASTNode tryParseStatement() throws CompilerError {
-        if (this.scanner.getToken() == null) {
+    public @Nullable ASTNode parseTopLevelStatement() throws CompilerError {
+        Token firstToken = this.scanner.getToken();
+
+        if (firstToken == null) {
             // The end of the file has been reached
             return null;
         }
+        else if (firstToken.equals(BasicToken.INT)) {
+            this.scanner.scanToken();
+            if (!(this.scanner.expectToken() instanceof Identifier identifier)) {
+                throw new CompilerError("expected an identifier, got '" + this.scanner.getToken() + "'");
+            }
+            String name = identifier.getName();
+            this.scanner.expectTokenFrom(BasicToken.PAREN_LEFT);
+            this.scanner.scanToken();
+            List<VariableDeclarationNode> parameters = new ArrayList<>();
+            while (!this.scanner.expectToken().equals(BasicToken.PAREN_RIGHT)) {
+                this.scanner.expectTokenFrom(BasicToken.INT);
+                this.scanner.scanToken();
+                if (!(this.scanner.expectToken() instanceof Identifier parameterIdentifier)) {
+                    throw new CompilerError("expected an identifier, got '" + this.scanner.getToken() + "'");
+                }
+                parameters.add(new VariableDeclarationNode(parameterIdentifier.getName()));
+                this.scanner.scanToken();
+                this.scanner.expectTokenFrom(BasicToken.COMMA, BasicToken.PAREN_RIGHT);
+                if (this.scanner.getToken().equals(BasicToken.COMMA)) {
+                    this.scanner.scanToken();
+                }
+            }
+            this.scanner.scanToken();
+            this.scanner.expectTokenFrom(BasicToken.CURLY_LEFT);
+            ASTNode body = this.parseStatement();
+
+            return new FunctionDefinitionNode(name, parameters.toArray(VariableDeclarationNode[]::new), body);
+        }
         else {
-            return this.parseStatement();
+            throw new CompilerError("unexpected token '" + firstToken + "'");
         }
     }
 
