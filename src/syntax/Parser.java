@@ -2,14 +2,13 @@ package syntax;
 
 import error.CompilerError;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import token.Token;
 import token.TokenScanner;
 
 /**
  * Class which parses a sequence of scanned tokens into an abstract syntax tree.
- * For binary expressions, a recursive implementation of Pratt parsing is used
- * based on the C operator precedence table.
+ * For binary expressions, a simple recursive parsing method is used to enforce operator precedence,
+ * though it incorrectly uses right-to-left associativity. This issue will be addressed later.
  * @see TokenScanner
  * @see ASTNode
  */
@@ -51,48 +50,87 @@ public class Parser {
     }
 
     /**
-     * Parse an expression into an {@link ASTNode} using recursive Pratt parsing.
+     * Parse a multiplicative expression into an {@link ASTNode} using basic recursive parsing.
+     * A multiplicative expression may be an operand, a multiplication operation, or a division operation.
      * @return The parsed expression via the root of the AST.
      * @throws CompilerError Thrown if the token sequence violates syntax rules.
      */
-    public @NotNull ASTNode parseExpression() throws CompilerError {
-        return this.parseExpression(null);
-    }
-
-    /**
-     * Parse an expression into an {@link ASTNode} using recursive Pratt parsing.
-     * @param parentPrecedence The precedence of the parent operator, or null if there is none. Operators will then
-     * be parsed as long as their precedence level is higher than this level.
-     * @return The parsed expression via the root of the AST.
-     * @throws CompilerError Thrown if the token sequence violates syntax rules.
-     */
-    public @NotNull ASTNode parseExpression(@Nullable Precedence parentPrecedence) throws CompilerError {
+    public @NotNull ASTNode parseMultiplicativeExpression() throws CompilerError {
         // Start by parsing an operand, which will become the left subtree of the next operator
-        // (unless the method returns early). This variable will remain as the root of the subtree
-        ASTNode subtree = this.parseOperand();
+        // (unless the method returns early)
+        ASTNode leftHandSide = this.parseOperand();
 
-        while (this.scanner.getToken() != null) {
-            // Check the current token and gather information about it
+        if (this.scanner.getToken() == null) {
+            // We have reached the end of the file, so there is no operator or right-hand side
+            return leftHandSide;
+        }
+        else {
+            // Ensure the current token is an operator, and obtain the operation type
             Operation operation = Operation.fromToken(this.scanner.getToken());
             if (operation == null) {
                 throw new CompilerError("expected an operator, got '" + this.scanner.getToken() + "'");
             }
-            Precedence currentPrecedence = operation.getPrecedence();
-
-            // This condition is crucial for respecting operator precedence. If the parent takes precedence,
-            // it must be made into a subtree before this operator is incorporated
-            if (parentPrecedence != null && parentPrecedence.compareTo(currentPrecedence) >= 0) {
-                break;
+            // Ensure the current token is a multiplicative operator so we are following operator precedence
+            if (operation != Operation.MULTIPLICATION && operation != Operation.DIVISION) {
+                return leftHandSide;
             }
 
-            // Recursively parse another expression to use as the right child of the operator
+            // Recursively parse another multiplicative expression to use as the right child of the operator.
+            // (This enforces right-to-left associativity, which is not correct for arithmetic operators,
+            // but that will be addressed with Pratt parsing later)
             this.scanner.scanToken();
-            ASTNode rightHandSide = this.parseExpression(currentPrecedence);
+            ASTNode rightHandSide = this.parseMultiplicativeExpression();
 
-            // Finally, create the operator node using left-to-right associativity
-            subtree = new OperatorNode(operation, new ASTNode[] { subtree, rightHandSide });
+            // Finally, create the operator node
+            return new OperatorNode(operation, new ASTNode[] { leftHandSide, rightHandSide });
         }
+    }
 
-        return subtree;
+    /**
+     * Parse an additive expression into an {@link ASTNode} using basic recursive parsing.
+     * An additive expression may be a multiplicative expression, an addition operation, or a subtraction operation.
+     * @return The parsed expression via the root of the AST.
+     * @throws CompilerError Thrown if the token sequence violates syntax rules.
+     */
+    public @NotNull ASTNode parseAdditiveExpression() throws CompilerError {
+        // Start by parsing a multiplicative expression, which will become the left subtree of the next operator
+        // (unless the method returns early)
+        ASTNode leftHandSide = this.parseMultiplicativeExpression();
+
+        if (this.scanner.getToken() == null) {
+            // We have reached the end of the file, so there is no operator or right-hand side
+            return leftHandSide;
+        }
+        else {
+            // Ensure the current token is an operator, and obtain the operation type.
+            Operation operation = Operation.fromToken(this.scanner.getToken());
+            if (operation == null) {
+                throw new CompilerError("expected an operator, got '" + this.scanner.getToken() + "'");
+            }
+            // Ensure the current token is a multiplicative operator so we are following operator precedence
+            if (operation != Operation.ADDITION && operation != Operation.SUBTRACTION) {
+                return leftHandSide;
+            }
+
+            // Recursively parse another additive expression to use as the right child of the operator.
+            // (This enforces right-to-left associativity, which is not correct for arithmetic operators,
+            // but that will be addressed with Pratt parsing later)
+            this.scanner.scanToken();
+            ASTNode rightHandSide = this.parseAdditiveExpression();
+
+            // Finally, create the operator node
+            return new OperatorNode(operation, new ASTNode[] { leftHandSide, rightHandSide });
+        }
+    }
+
+    /**
+     * Parse an expression into an {@link ASTNode} using basic recursive parsing.
+     * This is equivalent to calling {@link #parseAdditiveExpression()} due to it being the lowest precedence level.
+     * @return The parsed expression via the root of the AST.
+     * @throws CompilerError Thrown if the token sequence violates syntax rules.
+     */
+    public @NotNull ASTNode parseExpression() throws CompilerError {
+        // Start recursion at the lowest precedence level
+        return this.parseAdditiveExpression();
     }
 }

@@ -9,36 +9,26 @@ import token.Token;
  * Enumeration of the different types of operations allowed for an {@link OperatorNode}.
  * This includes unary and binary operations, as well as function calls.
  * @see OperatorNode
- * @see Precedence
  */
 public enum Operation {
     // Additive
-    ADDITION(BasicToken.PLUS, Precedence.ADDITIVE),
-    SUBTRACTION(BasicToken.MINUS, Precedence.ADDITIVE),
+    ADDITION(BasicToken.PLUS),
+    SUBTRACTION(BasicToken.MINUS),
     // Multiplicative
-    DIVISION(BasicToken.SLASH, Precedence.MULTIPLICATIVE),
-    MULTIPLICATION(BasicToken.STAR, Precedence.MULTIPLICATIVE);
+    DIVISION(BasicToken.SLASH),
+    MULTIPLICATION(BasicToken.STAR);
 
     /**
      * The key token denoting this operation, if applicable.
      */
     private final @Nullable BasicToken token;
-    /**
-     * The precedence level assigned to this operation.
-     */
-    private final @NotNull Precedence precedence;
 
-    Operation(@Nullable BasicToken token, @NotNull Precedence precedence) {
+    Operation(@Nullable BasicToken token) {
         this.token = token;
-        this.precedence = precedence;
     }
 
     public @Nullable BasicToken getToken() {
         return this.token;
-    }
-
-    public @NotNull Precedence getPrecedence() {
-        return this.precedence;
     }
 
     /**
