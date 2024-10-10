@@ -22,3 +22,5 @@ progress of the compiler implementation (see below).
 - `06_local-variables`: Adds the ability to declare, assign to, and use local variables.
 - `07_comparisons`: Adds new operators for comparisons, as well as a boolean type.
 - `08_conditionals-loops`: Adds `if`/`else` statements and `while` loops, along with compound statements.
+- `09_functions`: Adds function definitions, function calls, and `return` statements (plus the remainder
+  operation, `%`, just for fun).
