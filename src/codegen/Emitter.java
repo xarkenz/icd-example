@@ -6,6 +6,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.PrintWriter;
 import java.io.Writer;
+import java.util.List;
 
 /**
  * Abstraction layer between the {@link Generator} and {@link Writer}.
@@ -34,18 +35,40 @@ public class Emitter {
         this.writer.println();
         this.writer.println("@print_int_fstring = private unnamed_addr constant [4 x i8] c\"%d\\0A\\00\"");
         this.writer.println();
-        this.writer.println("define i32 @main() {");
     }
 
     /**
-     * Emit the postamble to the LLVM file, which includes the closing of the {@code main} function
-     * and the external declaration of the {@code printf} function.
+     * Emit the postamble to the LLVM file, which consists of the external declaration of the {@code printf} function.
      */
     public void emitPostamble() {
-        this.writer.println("\tret i32 0");
+        this.writer.println("declare i32 @printf(i8*, ...)");
+    }
+
+    /**
+     * Emit the start of a new function with the given name and parameters, including the opening curly brace.
+     * @param function The global register for the function to be started.
+     * @param parameters The list of parameter registers to be included in the function signature.
+     */
+    public void emitFunctionStart(@NotNull Register function, @NotNull List<Register> parameters) {
+        this.writer.print("define i32 " + function + "(");
+        // Print the list of parameters joined by commas
+        if (!parameters.isEmpty()) {
+            // The first parameter should not be preceded by a comma
+            this.writer.print("i32 " + parameters.get(0));
+            // All other parameters should be preceded by a comma
+            for (Register parameter : parameters.subList(1, parameters.size())) {
+                this.writer.print(", i32 " + parameter);
+            }
+        }
+        this.writer.println(") {");
+    }
+
+    /**
+     * Emit the end of the current function, which consists of a curly brace and an extra line break for separation.
+     */
+    public void emitFunctionEnd() {
         this.writer.println("}");
         this.writer.println();
-        this.writer.println("declare i32 @printf(i8*, ...)");
     }
 
     /**
@@ -136,7 +159,7 @@ public class Emitter {
     }
 
     /**
-     * Emit the {@code sdiv} instruction, which subtracts two signed integers and outputs their quotient.
+     * Emit the {@code sdiv} instruction, which divides two signed integers and outputs their quotient.
      * For example:
      * <p>
      * {@code %result = sdiv i32 %lhs, %rhs}
@@ -146,6 +169,19 @@ public class Emitter {
      */
     public void emitDivision(@NotNull Register result, @NotNull Value lhs, @NotNull Value rhs) {
         this.writer.println("\t" + result + " = sdiv i32 " + lhs + ", " + rhs);
+    }
+
+    /**
+     * Emit the {@code srem} instruction, which divides two signed integers and outputs their remainder.
+     * For example:
+     * <p>
+     * {@code %result = srem i32 %lhs, %rhs}
+     * @param result The register which will contain the remainder.
+     * @param lhs The left-hand side of the operation (dividend).
+     * @param rhs The right-hand side of the operation (divisor).
+     */
+    public void emitRemainder(@NotNull Register result, @NotNull Value lhs, @NotNull Value rhs) {
+        this.writer.println("\t" + result + " = srem i32 " + lhs + ", " + rhs);
     }
 
     /**
@@ -170,6 +206,29 @@ public class Emitter {
      */
     public void emitComparison(@NotNull Register result, @NotNull String cmpKind, @NotNull Value lhs, @NotNull Value rhs) {
         this.writer.println("\t" + result + " = icmp " + cmpKind + " i32 " + lhs + ", " + rhs);
+    }
+
+    /**
+     * Emit the {@code call} instruction, which calls a function with a given list of arguments.
+     * For example:
+     * <p>
+     * {@code %result = call i32 @callee(i32 %arg1, i32 %arg2)}
+     * @param result The register which will contain the return value of the call.
+     * @param callee The register for the function to be called.
+     * @param arguments The list of arguments to pass to the function.
+     */
+    public void emitFunctionCall(@NotNull Register result, @NotNull Register callee, @NotNull List<Value> arguments) {
+        this.writer.print("\t" + result + " = call i32 " + callee + "(");
+        // Print the list of arguments joined by commas
+        if (!arguments.isEmpty()) {
+            // The first argument should not be preceded by a comma
+            this.writer.print("i32 " + arguments.get(0));
+            // All other arguments should be preceded by a comma
+            for (Value argument : arguments.subList(1, arguments.size())) {
+                this.writer.print(", i32 " + argument);
+            }
+        }
+        this.writer.println(")");
     }
 
     /**
@@ -204,6 +263,17 @@ public class Emitter {
      */
     public void emitConditionalBranch(@NotNull Value condition, @NotNull Label trueTarget, @NotNull Label falseTarget) {
         this.writer.println("\tbr i1 " + condition + ", label " + trueTarget + ", label " + falseTarget);
+    }
+
+    /**
+     * Emit the {@code ret} instruction, which returns a given value from the current function.
+     * For example:
+     * <p>
+     * {@code ret i32 %value}
+     * @param value The value to return from the current function.
+     */
+    public void emitReturn(@NotNull Value value) {
+        this.writer.println("\tret i32 " + value);
     }
 
     /**

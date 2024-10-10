@@ -3,6 +3,8 @@ package codegen.symbol;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Arrays;
+
 /**
  * Custom hash table implementation mapping symbol names to the symbols they represent.
  * Conflict resolution is handled via chaining (i.e. each bucket is a linked list).
@@ -110,5 +112,14 @@ public class SymbolTable {
 
         // Return the symbol found, or null if the bucket didn't contain the item
         return currentNode == null ? null : currentNode.symbol;
+    }
+
+    /**
+     * Remove all previously inserted symbols from the symbol table, leaving the table as it was when
+     * it was constructed.
+     */
+    public void clear() {
+        // Detach all of the linked lists to clear the table (the garbage collector handles actually deleting them)
+        Arrays.fill(this.buckets, null);
     }
 }

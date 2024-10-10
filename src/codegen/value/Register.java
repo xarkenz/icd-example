@@ -14,10 +14,16 @@ public class Register implements Value {
      * The width of the integer stored in this register in bits.
      */
     private final int bitCount;
+    /**
+     * {@code true} if this is a global register starting with {@code @}, or {@code false} if this is
+     * a local register starting with {@code %}.
+     */
+    private final boolean global;
 
-    public Register(@NotNull String identifier, int bitCount) {
+    public Register(@NotNull String identifier, int bitCount, boolean global) {
         this.identifier = identifier;
         this.bitCount = bitCount;
+        this.global = global;
     }
 
     public @NotNull String getIdentifier() {
@@ -29,12 +35,21 @@ public class Register implements Value {
         return this.bitCount;
     }
 
+    public boolean isGlobal() {
+        return this.global;
+    }
+
     /**
      * Convert this register to a string for use in emitting LLVM.
-     * @return A string of the form {@code %identifier}.
+     * @return A string of the form {@code @identifier} if global or {@code %identifier} if local.
      */
     @Override
     public String toString() {
-        return "%" + this.getIdentifier();
+        if (this.isGlobal()) {
+            return "@" + this.getIdentifier();
+        }
+        else {
+            return "%" + this.getIdentifier();
+        }
     }
 }

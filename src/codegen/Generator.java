@@ -1,5 +1,6 @@
 package codegen;
 
+import codegen.symbol.FunctionSymbol;
 import codegen.symbol.Symbol;
 import codegen.symbol.SymbolTable;
 import codegen.value.ImmediateInt32;
@@ -15,6 +16,8 @@ import token.Identifier;
 import token.IntegerLiteral;
 
 import java.io.Writer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -29,9 +32,14 @@ public class Generator {
      */
     private final @NotNull Emitter emitter;
     /**
-     * The symbol table used to store all symbols during generation.
+     * The symbol table used to store all symbols local to the current function during generation.
+     * This is cleared each time a function finishes generating.
      */
-    private final @NotNull SymbolTable symbolTable;
+    private final @NotNull SymbolTable localSymbolTable;
+    /**
+     * The symbol table used to store all global symbols during generation.
+     */
+    private final @NotNull SymbolTable globalSymbolTable;
     /**
      * Numeric identifier for the virtual register {@link #createRegister(int)} returns the next time it is called.
      * Initial value is 0. (This was previously 1, but since we are now explicitly declaring the label
@@ -46,7 +54,8 @@ public class Generator {
 
     private Generator(@NotNull Emitter emitter) {
         this.emitter = emitter;
-        this.symbolTable = new SymbolTable();
+        this.localSymbolTable = new SymbolTable();
+        this.globalSymbolTable = new SymbolTable();
         this.nextRegisterNumber = 0;
         this.nextLabelNumber = 0;
     }
@@ -59,7 +68,7 @@ public class Generator {
      */
     private @NotNull Register createRegister(int bitCount) {
         String identifier = Integer.toString(this.nextRegisterNumber++);
-        return new Register(identifier, bitCount);
+        return new Register(identifier, bitCount, false);
     }
 
     /**
@@ -78,19 +87,40 @@ public class Generator {
     }
 
     /**
-     * Get a symbol from the symbol table by name, throwing an exception if it does not exist.
-     * @param name The name to search for in the symbol table.
-     * @return The relevant symbol in the symbol table with the given name.
-     * @throws CompilerError Thrown if the given name does not correspond to a symbol in the symbol table.
+     * Get a symbol from the local symbol table by name, throwing an exception if it does not exist.
+     * @param name The name to search for in the local symbol table.
+     * @return The relevant symbol in the local symbol table with the given name.
+     * @throws CompilerError Thrown if the given name does not correspond to a symbol in the local symbol table.
      */
-    private @NotNull Symbol getSymbol(@NotNull String name) throws CompilerError {
-        Symbol symbol = this.symbolTable.find(name);
+    private @NotNull Symbol getLocalSymbol(@NotNull String name) throws CompilerError {
+        Symbol symbol = this.localSymbolTable.find(name);
 
         if (symbol == null) {
-            throw new CompilerError("undefined symbol '" + name + "'");
+            throw new CompilerError("undefined local symbol '" + name + "'");
         }
         else {
             return symbol;
+        }
+    }
+
+    /**
+     * Get a function symbol from the global symbol table by name, throwing an exception if it does not exist.
+     * @param name The name to search for in the global symbol table.
+     * @return The relevant function symbol in the global symbol table with the given name.
+     * @throws CompilerError Thrown if the given name does not correspond to a symbol in the global symbol table,
+     *     or if the symbol it corresponds to is not a function symbol.
+     */
+    private @NotNull FunctionSymbol getGlobalFunctionSymbol(@NotNull String name) throws CompilerError {
+        Symbol symbol = this.globalSymbolTable.find(name);
+
+        if (symbol == null) {
+            throw new CompilerError("undefined global function symbol '" + name + "'");
+        }
+        else if (!(symbol instanceof FunctionSymbol functionSymbol)) {
+            throw new CompilerError("global symbol '" + name + "' is not a function");
+        }
+        else {
+            return functionSymbol;
         }
     }
 
@@ -140,7 +170,7 @@ public class Generator {
         }
         else if (node instanceof Identifier identifier) {
             // Get the stack pointer corresponding to the given identifier
-            Symbol symbol = this.getSymbol(identifier.getName());
+            Symbol symbol = this.getLocalSymbol(identifier.getName());
             Register pointer = symbol.getRegister();
 
             // Emit a load instruction to obtain the local variable's value
@@ -158,7 +188,7 @@ public class Generator {
                 // If the operator was parsed properly, the first operand must be an identifier
                 Identifier identifier = (Identifier) operator.getOperands()[0];
                 // Get the stack pointer corresponding to the given identifier
-                Symbol symbol = this.getSymbol(identifier.getName());
+                Symbol symbol = this.getLocalSymbol(identifier.getName());
                 Register pointer = symbol.getRegister();
 
                 // Emit a store instruction to change the value of the variable
@@ -195,6 +225,10 @@ public class Generator {
                         result = this.createRegister(32);
                         this.emitter.emitDivision(result, lhs, rhs);
                     }
+                    case REMAINDER -> {
+                        result = this.createRegister(32);
+                        this.emitter.emitRemainder(result, lhs, rhs);
+                    }
                     case EQUAL -> {
                         result = this.createRegister(1);
                         this.emitter.emitComparison(result, "eq", lhs, rhs);
@@ -225,6 +259,25 @@ public class Generator {
                 return result;
             }
         }
+        else if (node instanceof FunctionCallNode functionCall) {
+            // Find the symbol for the function to call in the global symbol table
+            FunctionSymbol callee = this.getGlobalFunctionSymbol(functionCall.getCallee());
+            // Check the number of arguments to ensure it matches the number of parameters
+            if (functionCall.getArguments().length != callee.getParameterCount()) {
+                throw new CompilerError("function '" + callee.getName() + "' expects " + callee.getParameterCount()
+                    + " arguments but " + functionCall.getArguments().length + " were given");
+            }
+            List<Value> argumentValues = new ArrayList<>(functionCall.getArguments().length);
+            for (ASTNode argument : functionCall.getArguments()) {
+                Value argumentValue = Objects.requireNonNull(this.generateNode(argument));
+                argumentValues.add(argumentValue);
+            }
+
+            Register result = this.createRegister(32);
+            this.emitter.emitFunctionCall(result, callee.getRegister(), argumentValues);
+
+            return result;
+        }
         else if (node instanceof BlockStatementNode block) {
             // Generate and emit each statement of the block in order
             for (ASTNode statement : block.getStatements()) {
@@ -235,11 +288,11 @@ public class Generator {
         }
         else if (node instanceof VariableDeclarationNode declaration) {
             // Allocate space on the stack for this new variable, creating a register to hold the pointer
-            Register pointer = new Register(declaration.getName(), 32);
+            Register pointer = new Register(declaration.getName(), 32, false);
             this.emitter.emitStackAllocation(pointer);
             // Create a symbol for the local variable and add it to the symbol table
             Symbol symbol = new Symbol(declaration.getName(), pointer);
-            this.symbolTable.insert(symbol);
+            this.localSymbolTable.insert(symbol);
 
             return null;
         }
@@ -327,6 +380,62 @@ public class Generator {
 
             return null;
         }
+        else if (node instanceof ReturnNode returnStatement) {
+            // Generate the value that will be returned
+            Value returnValue = Objects.requireNonNull(this.generateNode(returnStatement.getReturnValue()));
+
+            // Emit the instruction to return the value from the function
+            this.emitter.emitReturn(returnValue);
+
+            // Since "ret" is a terminator instruction, LLVM will implicitly insert a label after it if none is
+            // present. To account for this, we can simply increment the virtual register number
+            this.nextRegisterNumber++;
+
+            return null;
+        }
+        else if (node instanceof FunctionDefinitionNode functionDefinition) {
+            // Store the parameter names for creating the variables for each parameter later
+            List<String> parameterNames = new ArrayList<>(functionDefinition.getParameters().length);
+            // Create a register for each parameter value in the signature
+            List<Register> parameterValues = new ArrayList<>(functionDefinition.getParameters().length);
+            for (VariableDeclarationNode parameterDeclaration : functionDefinition.getParameters()) {
+                parameterNames.add(parameterDeclaration.getName());
+                parameterValues.add(this.createRegister(32));
+            }
+
+            // Create a global register for the function and add it to the symbol table
+            // Doing this before generating the function body allows for recursive calls
+            Register function = new Register(functionDefinition.getName(), 0, true);
+            FunctionSymbol functionSymbol = new FunctionSymbol(functionDefinition.getName(), function, functionDefinition.getParameters().length);
+            this.globalSymbolTable.insert(functionSymbol);
+
+            // Emit the start of the function definition; the code below will emit code within the definition
+            this.emitter.emitFunctionStart(function, parameterValues);
+            // Emit a label for the first basic block in the function
+            this.emitter.emitLabel(this.createLabel());
+            // Store each parameter on the stack so it can be used like any other variable
+            for (int index = 0; index < parameterValues.size(); index++) {
+                // Allocate space on the stack for this new variable, creating a register to hold the pointer
+                Register pointer = new Register(parameterNames.get(index), 32, false);
+                this.emitter.emitStackAllocation(pointer);
+                // Store the argument value in the newly created variable
+                this.emitter.emitStore(parameterValues.get(index), pointer);
+                // Create a symbol for the local variable and add it to the symbol table
+                Symbol symbol = new Symbol(parameterNames.get(index), pointer);
+                this.localSymbolTable.insert(symbol);
+            }
+            // Generate the function body
+            this.generateNode(functionDefinition.getBody());
+            // Emit the end of the function definition
+            this.emitter.emitFunctionEnd();
+
+            // Clear the local symbol table and reset the register and label numbering
+            this.localSymbolTable.clear();
+            this.nextRegisterNumber = 0;
+            this.nextLabelNumber = 0;
+
+            return null;
+        }
         else {
             throw new CompilerError("unrecognized AST node type");
         }
@@ -349,8 +458,6 @@ public class Generator {
 
         // Create an instance of this class to keep internal state
         Generator generator = new Generator(emitter);
-        // Emit a label for the first basic block in the function
-        emitter.emitLabel(generator.createLabel());
         // As each statement is parsed by the parser, generate and emit the code for that statement
         ASTNode statement = parser.parseTopLevelStatement();
         while (statement != null) {

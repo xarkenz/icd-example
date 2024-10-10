@@ -27,8 +27,9 @@ public enum Operation {
     ADDITION(BasicToken.PLUS, Precedence.ADDITIVE),
     SUBTRACTION(BasicToken.MINUS, Precedence.ADDITIVE),
     // Multiplicative
+    MULTIPLICATION(BasicToken.STAR, Precedence.MULTIPLICATIVE),
     DIVISION(BasicToken.SLASH, Precedence.MULTIPLICATIVE),
-    MULTIPLICATION(BasicToken.STAR, Precedence.MULTIPLICATIVE);
+    REMAINDER(BasicToken.PERCENT, Precedence.MULTIPLICATIVE);
 
     /**
      * The key token denoting this operation, if applicable.
@@ -71,6 +72,7 @@ public enum Operation {
                 case MINUS -> Operation.SUBTRACTION;
                 case STAR -> Operation.MULTIPLICATION;
                 case SLASH -> Operation.DIVISION;
+                case PERCENT -> Operation.REMAINDER;
                 default -> null;
             };
         }

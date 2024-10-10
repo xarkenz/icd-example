@@ -3,6 +3,43 @@ target triple = "x86_64-pc-linux-gnu"
 
 @print_int_fstring = private unnamed_addr constant [4 x i8] c"%d\0A\00"
 
+define i32 @square(i32 %0) {
+.block.0:
+	%x = alloca i32
+	store i32 %0, i32* %x
+	%1 = load i32, i32* %x
+	%2 = load i32, i32* %x
+	%3 = mul nsw i32 %1, %2
+	ret i32 %3
+}
+
+define i32 @gcd(i32 %0, i32 %1) {
+.block.0:
+	%a = alloca i32
+	store i32 %0, i32* %a
+	%b = alloca i32
+	store i32 %1, i32* %b
+	br label %.block.1
+.block.1:
+	%2 = load i32, i32* %b
+	%3 = icmp sgt i32 %2, 1
+	br i1 %3, label %.block.2, label %.block.3
+.block.2:
+	%temp = alloca i32
+	%4 = load i32, i32* %a
+	%5 = load i32, i32* %b
+	%6 = srem i32 %4, %5
+	store i32 %6, i32* %temp
+	%7 = load i32, i32* %b
+	store i32 %7, i32* %a
+	%8 = load i32, i32* %temp
+	store i32 %8, i32* %b
+	br label %.block.1
+.block.3:
+	%9 = load i32, i32* %a
+	ret i32 %9
+}
+
 define i32 @main() {
 .block.0:
 	%0 = add nsw i32 10, 8
@@ -98,6 +135,10 @@ define i32 @main() {
 .block.9:
 	br label %.block.6
 .block.6:
+	%57 = call i32 @square(i32 5)
+	%58 = call i32(i8*, ...) @printf(i8* bitcast ([4 x i8]* @print_int_fstring to i8*), i32 %57)
+	%59 = call i32 @gcd(i32 20, i32 45)
+	%60 = call i32(i8*, ...) @printf(i8* bitcast ([4 x i8]* @print_int_fstring to i8*), i32 %59)
 	ret i32 0
 }
 

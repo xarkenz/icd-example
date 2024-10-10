@@ -50,7 +50,35 @@ public class Parser {
         if (token instanceof ASTNode node) {
             // The token also serves as an AST node, so it can simply become a leaf of the tree
             this.scanner.scanToken();
-            return node;
+
+            // Check for a left parenthesis following an identifier, which indicates a function call
+            if (node instanceof Identifier identifier && this.scanner.getToken() == BasicToken.PAREN_LEFT) {
+                this.scanner.scanToken();
+                // Gather arguments until reaching the end of the call
+                List<ASTNode> arguments = new ArrayList<>();
+                while (!this.scanner.expectToken().equals(BasicToken.PAREN_RIGHT)) {
+                    // Parse the argument
+                    ASTNode argument = this.parseExpression();
+                    // Add the argument to the list
+                    arguments.add(argument);
+                    // The next token must be either a comma or right parenthesis to end the parameter list
+                    this.scanner.expectTokenFrom(BasicToken.COMMA, BasicToken.PAREN_RIGHT);
+                    if (this.scanner.getToken().equals(BasicToken.COMMA)) {
+                        this.scanner.scanToken();
+                    }
+                }
+                this.scanner.scanToken();
+
+                // The argument to toArray() here, ASTNode[]::new, is needed for Java to properly
+                // infer the array type. It's a reference to the constructor for ASTNode[], which
+                // is interpreted as a function like "ASTNode[] new(int length)". Why Java's arrays and generics
+                // don't get along well (and hence why the argument is necessary), I don't fully understand.
+                return new FunctionCallNode(identifier.getName(), arguments.toArray(ASTNode[]::new));
+            }
+            else {
+                // Not a function call, so return the AST node itself
+                return node;
+            }
         }
         else {
             throw new CompilerError("expected an operand, got '" + token + "'");
@@ -131,31 +159,46 @@ public class Parser {
             return null;
         }
         else if (firstToken.equals(BasicToken.INT)) {
+            // Parse a function definition
             this.scanner.scanToken();
+            // The next token must be an identifier
             if (!(this.scanner.expectToken() instanceof Identifier identifier)) {
                 throw new CompilerError("expected an identifier, got '" + this.scanner.getToken() + "'");
             }
             String name = identifier.getName();
+            this.scanner.scanToken();
+            // The next token must be a left parenthesis to start the parameter list
             this.scanner.expectTokenFrom(BasicToken.PAREN_LEFT);
             this.scanner.scanToken();
+            // Gather parameters in the form of variable declarations until reaching the end of the parameter list
             List<VariableDeclarationNode> parameters = new ArrayList<>();
             while (!this.scanner.expectToken().equals(BasicToken.PAREN_RIGHT)) {
+                // Parameter declaration must start with a type
                 this.scanner.expectTokenFrom(BasicToken.INT);
                 this.scanner.scanToken();
+                // The next token must be an identifier
                 if (!(this.scanner.expectToken() instanceof Identifier parameterIdentifier)) {
                     throw new CompilerError("expected an identifier, got '" + this.scanner.getToken() + "'");
                 }
+                // Add the parameter to the list
                 parameters.add(new VariableDeclarationNode(parameterIdentifier.getName()));
                 this.scanner.scanToken();
+                // The next token must be either a comma or right parenthesis to end the parameter list
                 this.scanner.expectTokenFrom(BasicToken.COMMA, BasicToken.PAREN_RIGHT);
                 if (this.scanner.getToken().equals(BasicToken.COMMA)) {
                     this.scanner.scanToken();
                 }
             }
             this.scanner.scanToken();
+            // Expect a left curly brace to start the function body
             this.scanner.expectTokenFrom(BasicToken.CURLY_LEFT);
+            // Parse the function body as a block statement
             ASTNode body = this.parseStatement();
 
+            // The argument to toArray() here, VariableDeclarationNode[]::new, is needed for Java to properly
+            // infer the array type. It's a reference to the constructor for VariableDeclarationNode[], which
+            // is interpreted as a function like "VariableDeclarationNode[] new(int length)". Why Java's arrays and
+            // generics don't get along well (and hence why the argument is necessary), I don't fully understand.
             return new FunctionDefinitionNode(name, parameters.toArray(VariableDeclarationNode[]::new), body);
         }
         else {
@@ -276,6 +319,17 @@ public class Parser {
             ASTNode loopBody = this.parseStatement();
 
             return new WhileLoopNode(condition, loopBody);
+        }
+        else if (firstToken.equals(BasicToken.RETURN)) {
+            // Parse a return statement
+            this.scanner.scanToken();
+            ASTNode returnValue = this.parseExpression();
+            // Ensure the return value expression ended on a semicolon
+            this.scanner.expectTokenFrom(BasicToken.SEMICOLON);
+            // Skip to the next token to prepare for the next call to this method
+            this.scanner.scanToken();
+
+            return new ReturnNode(returnValue);
         }
         else {
             throw new CompilerError("unexpected token '" + firstToken + "'");

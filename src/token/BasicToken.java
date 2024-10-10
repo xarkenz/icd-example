@@ -21,6 +21,7 @@ public enum BasicToken implements Token {
     MINUS("-"),
     STAR("*"),
     SLASH("/"),
+    PERCENT("%"),
     EQUAL("="),
     DOUBLE_EQUAL("=="),
     BANG_EQUAL("!="),
@@ -40,7 +41,8 @@ public enum BasicToken implements Token {
     PRINT("print"),
     IF("if"),
     ELSE("else"),
-    WHILE("while");
+    WHILE("while"),
+    RETURN("return");
 
     /**
      * The only representation this basic token can have, in string form.

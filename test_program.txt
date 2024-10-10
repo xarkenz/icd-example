@@ -1,47 +1,70 @@
-// Basic arithmetic test
-print 10 + 8 - 6 / 6 * 2 + 8 / 4 - 1; // prints 17
-print 5; // prints 5
-print 0 - 5; // prints -5
-print 5 - 3 + 2; // prints 4
-
-// Local variables test
-int fred;
-int jim;
-fred = 5;
-jim = 7 + fred;
-print fred + jim; // prints 17
-
-// Comparisons test
-print 7 == 9; // false (0)
-print 7 != 9; // true (1)
-print 7 < 9; // true (1)
-print 7 > 9; // false (0)
-print 7 <= 9; // true (1)
-print 7 >= 9; // false (0)
-
-// Conditionals and loops test
-int fib1;
-fib1 = 0;
-int fib2;
-fib2 = 1;
-while (fib2 <= 1000) {
-    print fib2;
-    int fibTemp;
-    fibTemp = fib2;
-    fib2 = fib1 + fib2;
-    fib1 = fibTemp;
+int square(int x) {
+    return x * x;
 }
-int mystery;
-mystery = 10;
-if (9 > mystery) {
-    print 9; // does not print
-}
-else if (11 < mystery) {
-    print 11; // does not print
-}
-else {
-    print 10; // prints 10
-    if (mystery == 10) {
-        print 1; // prints 1
+
+// Euclidean GCD algorithm
+int gcd(int a, int b) {
+    while (b > 1) {
+        int temp;
+        temp = a % b;
+        a = b;
+        b = temp;
     }
+    return a;
+}
+
+int main() {
+    // Basic arithmetic test
+    print 10 + 8 - 6 / 6 * 2 + 8 / 4 - 1; // prints 17
+    print 5; // prints 5
+    print 0 - 5; // prints -5
+    print 5 - 3 + 2; // prints 4
+
+    // Local variables test
+    int fred;
+    int jim;
+    fred = 5;
+    jim = 7 + fred;
+    print fred + jim; // prints 17
+
+    // Comparisons test
+    print 7 == 9; // false (0)
+    print 7 != 9; // true (1)
+    print 7 < 9; // true (1)
+    print 7 > 9; // false (0)
+    print 7 <= 9; // true (1)
+    print 7 >= 9; // false (0)
+
+    // Conditionals and loops test
+    int fib1;
+    fib1 = 0;
+    int fib2;
+    fib2 = 1;
+    while (fib2 <= 1000) {
+        print fib2;
+        int fibTemp;
+        fibTemp = fib2;
+        fib2 = fib1 + fib2;
+        fib1 = fibTemp;
+    }
+    int mystery;
+    mystery = 10;
+    if (9 > mystery) {
+        print 9; // does not print
+    }
+    else if (11 < mystery) {
+        print 11; // does not print
+    }
+    else {
+        print 10; // prints 10
+        if (mystery == 10) {
+            print 1; // prints 1
+        }
+    }
+
+    // Functions test
+    print square(5);
+    print gcd(20, 45);
+
+    return 0;
 }
